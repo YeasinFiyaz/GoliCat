@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoliCat · গলির বিড়াল</title>
+<meta name="description" content="A Dhaka street cat that walks your streets with you. Free Android app: your location as an animated cat, office and home modes, live sharing.">
+<meta property="og:title" content="GoliCat · গলির বিড়াল">
+<meta property="og:description" content="A Dhaka street cat that walks your streets with you. Free for Android.">
+<meta property="og:image" content="https://golicat.yeasinfiyaz.workers.dev/og.png">
+<meta name="theme-color" content="#D7263D">
+<link rel="icon" href="/favicon.png">
+<style>
+  :root {
+    --red:#D7263D; --red-press:#B81E33; --on-red:#fff;
+    --ink:#2A1F19; --soft:#5E5047; --paper:#FBF6EE; --field:#F2EADF; --raise:#FFFFFF;
+    --bar:#C8243A; --grid:#E6DCCF; --slotc:#CDBFB0;
+    --wrap:1180px; --pad:clamp(16px, 4vw, 40px); --gap:clamp(72px, 10vw, 140px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:#F3EBE1; --soft:#BDAE9F; --paper:#17120F; --field:#221B16; --raise:#2C231D;
+      --bar:#E85D6C; --grid:#30261F; --slotc:#4A3D33;
+    }
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Bengali","Nirmala UI","Hind Siliguri",sans-serif; }
+  html[lang="bn"] body { line-height:1.75; }
+  a { color:inherit; }
+  img { max-width:100%; }
+  .wrap { max-width:var(--wrap); margin:0 auto; padding:0 var(--pad); }
+  h1, h2, h3 { margin:0; letter-spacing:-0.02em; }
+  h2 { font-size:clamp(28px, 3.2vw, 40px); line-height:1.1; }
+  b { font-weight:700; }
+  [hidden] { display:none !important; }
+
+  /* top bar */
+  .bar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-top:20px; padding-bottom:20px; }
+  .brand { display:flex; align-items:center; gap:12px; text-decoration:none; font-weight:800; font-size:20px; letter-spacing:-0.01em; }
+  .brand img { width:44px; height:44px; border-radius:12px; }
+  .lang { display:inline-flex; background:var(--field); border-radius:999px; padding:4px; }
+  .lang button { border:0; background:none; color:var(--soft); font:inherit; font-size:15px; padding:6px 16px; border-radius:999px; cursor:pointer; transition:background-color .15s, color .15s; }
+  .lang button:hover { color:var(--ink); }
+  .lang button[aria-pressed="true"] { background:var(--red); color:var(--on-red); font-weight:700; }
+  .lang button:focus-visible, .btn:focus-visible, a:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
+
+  /* hero */
+  .hero { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.05fr); gap:clamp(32px, 5vw, 72px); align-items:center; padding-top:clamp(24px, 5vw, 64px); }
+  .hero h1 { font-size:clamp(60px, 8.4vw, 116px); line-height:.92; letter-spacing:-0.045em; font-weight:800; }
+  .hero h1 span { display:block; font-size:clamp(24px, 2.6vw, 34px); letter-spacing:0; line-height:1.3; font-weight:700; color:var(--red); margin-top:14px; }
+  .lead { font-size:clamp(19px, 1.6vw, 22px); line-height:1.5; margin:28px 0 0; max-width:34em; }
+  .get { margin-top:36px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; min-height:58px; padding:14px 34px; background:var(--red); color:var(--on-red); text-decoration:none; font-weight:700; font-size:18px; border-radius:999px; transition:background-color .15s, transform .15s; }
+  .btn:hover { background:var(--red-press); }
+  .btn:active { transform:translateY(1px); }
+  .count { margin:16px 0 0; font-size:17px; }
+  .count b { font-variant-numeric:tabular-nums; }
+  .meta { color:var(--soft); font-size:15px; margin:6px 0 0; }
+  .stage { background:var(--field); border-radius:28px; padding:clamp(20px, 3vw, 36px); display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; align-items:end; }
+  .stage img { display:block; width:100%; height:auto; }
+  .stage .big { grid-column:1 / -1; width:86%; margin:0 auto; }
+  .stage figcaption { grid-column:1 / -1; color:var(--soft); font-size:15px; margin-top:6px; text-align:center; }
+
+  /* what the cat does */
+  .section { margin-top:var(--gap); }
+  .split { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 2fr); gap:clamp(24px, 5vw, 72px); align-items:start; }
+  .split > h2 { position:sticky; top:24px; }
+  .does { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:28px 40px; }
+  .does li { margin:0; padding-left:18px; position:relative; }
+  .does li::before { content:""; position:absolute; left:0; top:.62em; width:8px; height:8px; border-radius:50%; background:var(--red); }
+
+  /* install */
+  .band { background:var(--field); border-radius:28px; padding:clamp(28px, 5vw, 64px); }
+  .band h2 { margin-bottom:28px; }
+  .steps { margin:0; padding-left:1.4em; columns:2; column-gap:56px; }
+  .steps li { break-inside:avoid; margin:0 0 20px; padding-left:6px; }
+  .steps li::marker { color:var(--red); font-weight:800; }
+
+  /* downloads */
+  .stats-head { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:28px; }
+  .tiles { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
+  .tile { background:var(--field); border-radius:20px; padding:20px 22px; min-width:0; }
+  .tile .l { color:var(--soft); font-size:15px; }
+  .tile .v { font-size:clamp(34px, 4vw, 52px); font-weight:800; line-height:1.1; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; }
+  .tile.hero-n { background:var(--red); color:var(--on-red); }
+  .tile.hero-n .l { color:var(--on-red); opacity:.85; }
+  .panels { display:grid; grid-template-columns:minmax(0, 2fr) minmax(0, 1fr); gap:12px; margin-top:12px; }
+  .panel { background:var(--field); border-radius:20px; padding:22px; min-width:0; }
+  .panel h3 { font-size:17px; margin:0 0 12px; letter-spacing:0; }
+  .chart { position:relative; }
+  .chart svg { display:block; width:100%; height:auto; overflow:visible; }
+  .chart .ax { fill:var(--soft); font-size:11px; }
+  .chart .gl { stroke:var(--grid); }
+  .chart .bl { stroke:var(--slotc); }
+  .chart .bar { fill:var(--bar); }
+  .chart .col.on .bar { opacity:.75; }
+  .chart .hit { fill:transparent; }
+  .chart .slot { fill:var(--slotc); }
+  .chart .col.on .slot { fill:var(--soft); }
+  .chart .emptymark { fill:var(--soft); font-size:14px; }
+  .tip { position:absolute; pointer-events:none; background:var(--ink); color:var(--paper); border-radius:10px; padding:6px 10px; font-size:13px; white-space:nowrap; transform:translate(-50%, calc(-100% - 8px)); opacity:0; transition:opacity .1s; }
+  .tip.show { opacity:1; }
+  .places ul { list-style:none; padding:0; margin:0; }
+  .places li { display:grid; grid-template-columns:minmax(0, 7.5em) 1fr auto; align-items:center; gap:10px; margin:0 0 12px; font-size:15px; }
+  .places .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .places .fill { height:10px; background:var(--bar); border-radius:0 5px 5px 0; min-width:3px; }
+  .places .n { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; }
+  .stats-note { color:var(--soft); font-size:15px; margin:16px 0 0; max-width:60em; }
+
+  /* privacy */
+  .privacy p { margin:0; }
+  .privacy .side { color:var(--soft); font-size:15px; }
+  .privacy code { display:block; margin-top:6px; font-size:13px; word-break:break-all; color:var(--ink); }
+
+  /* footer */
+  footer { margin-top:var(--gap); background:var(--field); }
+  footer .wrap { padding-top:clamp(40px, 6vw, 72px); padding-bottom:clamp(32px, 5vw, 56px); display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:24px; align-items:end; }
+  .sign { font-size:clamp(48px, 9vw, 128px); font-weight:800; letter-spacing:-0.05em; line-height:.9; }
+  .credits { color:var(--soft); font-size:15px; text-align:right; }
+  .credits a { color:var(--soft); }
+  a.maker { color:var(--red); font-weight:700; text-decoration:none; white-space:nowrap; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) a.maker, :root:not([data-theme="light"]) .hero h1 span { color:var(--bar); } }
+  a.maker:hover { text-decoration:underline; text-underline-offset:3px; }
+
+  /* phone */
+  @media (max-width:900px) {
+    .hero, .split { grid-template-columns:1fr; }
+    .split > h2 { position:static; }
+    .stage { order:2; }
+    .panels { grid-template-columns:1fr; }
+    .steps { columns:1; }
+  }
+  @media (max-width:640px) {
+    body { font-size:16px; }
+    .does { grid-template-columns:1fr; gap:18px; }
+    .tiles { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    .btn { width:100%; }
+    .brand span { display:none; }
+    footer .wrap { grid-template-columns:1fr; }
+    .credits { text-align:left; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap bar">
+  <a class="brand" href="/get/"><img src="img/icon.png" alt=""><span>GoliCat</span></a>
+  <div class="lang" role="group" aria-label="Language / ভাষা">
+    <button type="button" data-lang="en" lang="en">English</button>
+    <button type="button" data-lang="bn" lang="bn">বাংলা</button>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="hero">
+    <div>
+      <h1>GoliCat<span lang="bn">গলির বিড়াল</span></h1>
+      <p class="lead" data-i18n="lead">A Dhaka street cat that walks your streets with you. Your real location shows on the map as an animated cat with a red scarf.</p>
+      <div class="get">
+        <a class="btn" href="__APK_ARM64__" download data-i18n="btn">Download for Android</a>
+        <p class="count" id="countLine" hidden></p>
+        <p class="meta" data-i18n="meta1">Version __VERSION__ · __SIZE_ARM64__ MB · Android 7 or newer · free, no ads, no account</p>
+        <p class="meta" data-i18n="meta2">Older or very cheap phone and the app won't install? <a href="__APK_ARMV7__" download>Try this version</a> (__SIZE_ARMV7__ MB).</p>
+      </div>
+    </div>
+    <figure class="stage" aria-hidden="true" style="margin:0">
+      <img class="big" src="img/typing.png" alt="" width="560" height="400">
+      <img src="img/walk.png" alt="" width="560" height="400">
+      <img src="img/tea.png" alt="" width="560" height="400">
+    </figure>
+  </section>
+
+  <section class="section split">
+    <h2 data-i18n="hWhat">What the cat does</h2>
+    <ul class="does" data-i18n="what">
+    <li><b>Walks</b> when you walk, and races with its scarf flying when you're in a rickshaw, bus or car.</li>
+    <li><b>Takes a cha break</b> when you stop for a while.</li>
+    <li><b>Goes to work:</b> set your office and it sits at a desk, typing, after you've been there 2 minutes.</li>
+    <li><b>Sleeps under a nakshi kantha</b> when you're home.</li>
+    <li><b>Pulls out a paper map</b> when GPS is weak.</li>
+    <li>Tap the cat to play. When the trip ends you get a <b>3-panel comic</b> of it, with no addresses in it.</li>
+    <li><b>Live sharing:</b> send a link and friends watch your cat move in their browser. It stops when you say, or when the trip ends.</li>
+    <li>Not outside? Try the <b>demo</b> in the app. It needs no location.</li>
+  </ul>
+  </section>
+
+  <section class="section band">
+    <h2 data-i18n="hInstall">How to install</h2>
+    <ol class="steps" data-i18n="install">
+    <li>Tap <b>Download for Android</b>, then open the downloaded <b>GoliCat</b> file.</li>
+    <li>If your phone asks, allow <b>Install unknown apps</b> for your browser or file manager.</li>
+    <li>If you see <b>"App scan recommended"</b> from Google Play Protect, tap <b>Scan app</b>. Google checks GoliCat in a few seconds, then tap <b>Install</b>. Every new app that isn't from the Play Store gets this check. It doesn't mean anything is wrong.</li>
+    <li>Open GoliCat, tap <b>Start roaming</b>, and allow location <b>while using the app</b> and <b>notifications</b>. The notification shows while the cat is roaming with you, even when the app is closed.</li>
+    <li>On Xiaomi, Redmi, Poco, Oppo, Vivo or Realme phones, also turn on <b>Autostart</b> and set <b>Battery saver → No restrictions</b> for GoliCat in the phone's settings. Otherwise the phone may stop the cat when the screen is off.</li>
+  </ol>
+  </section>
+
+  <section class="section" aria-labelledby="downloads">
+    <div class="stats-head"><h2 id="downloads" data-i18n="hDownloads">Downloads so far</h2></div>
+    <div class="tiles">
+      <div class="tile hero-n"><div class="l" data-i18n="tTotal">Total downloads</div><div class="v" id="sTotal">–</div></div>
+      <div class="tile"><div class="l" data-i18n="t7">Last 7 days</div><div class="v" id="s7">–</div></div>
+      <div class="tile"><div class="l" data-i18n="tToday">Today</div><div class="v" id="sToday">–</div></div>
+      <div class="tile"><div class="l" data-i18n="tCountries">Countries</div><div class="v" id="sCountries">–</div></div>
+    </div>
+    <div class="panels">
+      <div class="panel chart">
+        <h3 data-i18n="hChart">Downloads per day, last 30 days</h3>
+        <div id="chart"></div>
+      </div>
+      <div class="panel places" id="placesBox" hidden>
+        <h3 data-i18n="hPlaces">Where they're from</h3>
+        <ul id="places"></ul>
+      </div>
+    </div>
+    <p class="stats-note" id="statsNote">Loading…</p>
+  </section>
+
+  <section class="section split privacy">
+    <h2 data-i18n="hPrivacy">Your privacy</h2>
+    <div>
+      <p data-i18n="privacy">Your location, office and home stay on your phone. There are no accounts, ads or trackers. Only while you are <b>live sharing</b> does your latest position go to the GoliCat server, and it's deleted when sharing stops. Read the <a href="/privacy/">privacy policy</a>.</p>
+      <p class="side" style="margin-top:20px" data-i18n="sha">Check the file (SHA-256):<br><code>__SHA_ARM64__</code></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="sign" aria-hidden="true">GoliCat</div>
+    <p class="credits" data-i18n="footer">
+    GoliCat is a personal project by <a class="maker" href="https://yeasinfiyaz.netlify.app" target="_blank" rel="noopener">Yeasin Fiyaz ↗</a>.<br>The map is © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>.
+    · <a href="/privacy/">Privacy</a>
+  </p>
+  </div>
+</footer>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  // ---- Bangla text. English is what's already in the HTML. ---------------------
+  const BN = {
+    lead: 'ঢাকার এক গলির বিড়াল, যে আপনার সাথে আপনার রাস্তায় হাঁটে। ম্যাপে আপনার আসল অবস্থান দেখায় লাল স্কার্ফ পরা একটি চলন্ত বিড়াল হয়ে।',
+    btn: 'অ্যান্ড্রয়েডের জন্য ডাউনলোড করুন',
+    meta1: 'ভার্সন __VERSION__ · __SIZE_ARM64__ MB · অ্যান্ড্রয়েড ৭ বা নতুন · ফ্রি, কোনো বিজ্ঞাপন নেই, অ্যাকাউন্ট লাগে না',
+    meta2: 'পুরোনো বা কম দামের ফোনে অ্যাপ ইনস্টল হচ্ছে না? <a href="__APK_ARMV7__" download>এই ভার্সনটি চেষ্টা করুন</a> (__SIZE_ARMV7__ MB)।',
+    hWhat: 'বিড়ালটি কী করে',
+    what: `
+    <li>আপনি হাঁটলে <b>হাঁটে</b>, আর রিকশা, বাস বা গাড়িতে থাকলে স্কার্ফ উড়িয়ে <b>ছুটে চলে</b>।</li>
+    <li>কিছুক্ষণ থেমে থাকলে <b>চা-বিরতি নেয়</b>।</li>
+    <li><b>অফিসে যায়:</b> অফিসের জায়গা সেট করে দিন, সেখানে ২ মিনিট থাকলেই বিড়ালটি ডেস্কে বসে টাইপ করতে শুরু করে।</li>
+    <li>বাসায় থাকলে <b>নকশি কাঁথার নিচে ঘুমায়</b>।</li>
+    <li>GPS দুর্বল হলে <b>কাগজের ম্যাপ বের করে</b>।</li>
+    <li>বিড়ালটিকে ট্যাপ করে খেলুন। ট্রিপ শেষে পাবেন তার একটি <b>৩ ঘরের কমিক</b>, তাতে কোনো ঠিকানা থাকে না।</li>
+    <li><b>লাইভ শেয়ারিং:</b> একটি লিংক পাঠান, বন্ধুরা ব্রাউজারেই আপনার বিড়ালের চলাফেরা দেখবে। আপনি বন্ধ করলে বা ট্রিপ শেষ হলে শেয়ারিং থেমে যায়।</li>
+    <li>বাইরে নেই? অ্যাপে <b>ডেমো</b> চালিয়ে দেখুন। এতে লোকেশন লাগে না।</li>
+  `,
+    hInstall: 'যেভাবে ইনস্টল করবেন',
+    install: `
+    <li><b>অ্যান্ড্রয়েডের জন্য ডাউনলোড করুন</b> বাটনে ট্যাপ করুন, তারপর ডাউনলোড হওয়া <b>GoliCat</b> ফাইলটি খুলুন।</li>
+    <li>ফোন অনুমতি চাইলে আপনার ব্রাউজার বা ফাইল ম্যানেজারের জন্য <b>Install unknown apps</b> (অজানা অ্যাপ ইনস্টল) চালু করুন।</li>
+    <li>Google Play Protect থেকে <b>"App scan recommended"</b> লেখা এলে <b>Scan app</b> চাপুন। কয়েক সেকেন্ডে Google অ্যাপটি পরীক্ষা করবে, তারপর <b>Install</b> চাপুন। Play Store-এর বাইরের প্রতিটি নতুন অ্যাপেই এই পরীক্ষা হয়। এর মানে অ্যাপে কোনো সমস্যা আছে, তা নয়।</li>
+    <li>GoliCat খুলে <b>Start roaming</b> চাপুন, তারপর লোকেশন (<b>অ্যাপ ব্যবহারের সময়</b>) আর <b>নোটিফিকেশন</b>-এর অনুমতি দিন। বিড়াল আপনার সাথে ঘুরতে থাকলে একটি নোটিফিকেশন দেখা যাবে, অ্যাপ বন্ধ থাকলেও।</li>
+    <li>Xiaomi, Redmi, Poco, Oppo, Vivo বা Realme ফোনে ফোনের সেটিংসে গিয়ে GoliCat-এর জন্য <b>Autostart</b> চালু করুন আর <b>Battery saver → No restrictions</b> দিন। না হলে স্ক্রিন বন্ধ থাকলে ফোন বিড়ালটিকে থামিয়ে দিতে পারে।</li>
+  `,
+    hDownloads: 'এ পর্যন্ত ডাউনলোড',
+    tTotal: 'মোট ডাউনলোড',
+    t7: 'গত ৭ দিনে',
+    tToday: 'আজ',
+    tCountries: 'দেশ',
+    hChart: 'প্রতিদিনের ডাউনলোড, গত ৩০ দিন',
+    hPlaces: 'কোন দেশ থেকে',
+    hPrivacy: 'আপনার গোপনীয়তা',
+    privacy: 'আপনার লোকেশন, অফিস আর বাসার জায়গা আপনার ফোনেই থাকে। কোনো অ্যাকাউন্ট, বিজ্ঞাপন বা ট্র্যাকার নেই। শুধু <b>লাইভ শেয়ারিং</b> চালু থাকলে আপনার সর্বশেষ অবস্থান GoliCat সার্ভারে যায়, আর শেয়ারিং বন্ধ হলেই তা মুছে যায়। বিস্তারিত পড়ুন <a href="/privacy/">প্রাইভেসি পলিসিতে</a>।',
+    sha: 'ফাইলটি মিলিয়ে দেখুন (SHA-256):<br><code>__SHA_ARM64__</code>',
+    footer: `
+    GoliCat হলো <a class="maker" href="https://yeasinfiyaz.netlify.app" target="_blank" rel="noopener">Yeasin Fiyaz ↗</a>-এর একটি ব্যক্তিগত প্রজেক্ট।<br>ম্যাপ © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>।
+    · <a href="/privacy/">প্রাইভেসি</a>
+  `,
+  };
+
+  // Strings the script writes itself.
+  const T = {
+    en: {
+      countSome: (n, t) => `<b>${n}</b> ${t.n === 1 ? 'download' : 'downloads'} so far` + (t.today > 0 ? ` · ${t.todayF} today` : ''),
+      countNone: 'Be one of the first to download GoliCat',
+      unavailable: 'Download numbers are unavailable right now.',
+      loading: 'Loading…',
+      note: (since) => (since ? `Counted since ${since}. ` : '') + 'A download counts when the file starts downloading. Bots and link previews are not counted. Updates every minute.',
+      empty: 'No downloads yet. Yours could be the first bar!',
+      tip: (day, n, raw) => `<b>${day}</b> · ${n} ${raw === 1 ? 'download' : 'downloads'}`,
+      firstCountry: 'First country…',
+      elsewhere: 'Somewhere else',
+      chartLabel: (max) => `Downloads per day over the last 30 days, highest ${max}`,
+    },
+    bn: {
+      countSome: (n, t) => `এ পর্যন্ত <b>${n}</b> বার ডাউনলোড হয়েছে` + (t.today > 0 ? ` · আজ ${t.todayF} বার` : ''),
+      countNone: 'GoliCat-এর প্রথম দিকের ডাউনলোডকারীদের একজন হোন',
+      unavailable: 'এই মুহূর্তে ডাউনলোডের সংখ্যা দেখানো যাচ্ছে না।',
+      loading: 'লোড হচ্ছে…',
+      note: (since) => (since ? `${since} থেকে গোনা হচ্ছে। ` : '') + 'ফাইল ডাউনলোড শুরু হলেই একটি ডাউনলোড গোনা হয়। বট আর লিংক প্রিভিউ গোনা হয় না। প্রতি মিনিটে আপডেট হয়।',
+      empty: 'এখনো কোনো ডাউনলোড নেই। প্রথম বারটি হতে পারে আপনার!',
+      tip: (day, n) => `<b>${day}</b> · ${n} ডাউনলোড`,
+      firstCountry: 'প্রথম দেশ…',
+      elsewhere: 'অন্যান্য',
+      chartLabel: (max) => `গত ৩০ দিনের প্রতিদিনের ডাউনলোড, সর্বোচ্চ ${max}`,
+    },
+  };
+
+  // ---- language state -----------------------------------------------------------
+  const EN = {};
+  document.querySelectorAll('[data-i18n]').forEach((el) => { EN[el.dataset.i18n] = el.innerHTML; });
+  const LOCALE = { en: 'en-GB', bn: 'bn-BD' };
+  let lang = 'en';
+  let fmt = new Intl.NumberFormat('en-US');
+  let names = null;
+
+  function pickInitial() {
+    const q = new URLSearchParams(location.search).get('lang');
+    if (q === 'bn' || q === 'en') return q;
+    try { const saved = localStorage.getItem('golicat-lang'); if (saved === 'bn' || saved === 'en') return saved; } catch {}
+    return (navigator.languages || [navigator.language || '']).some((l) => /^bn\b/i.test(l)) ? 'bn' : 'en';
+  }
+
+  function setLang(next, remember) {
+    lang = next;
+    document.documentElement.lang = next;
+    fmt = new Intl.NumberFormat(next === 'bn' ? 'bn-BD' : 'en-US');
+    try { names = new Intl.DisplayNames([next], { type: 'region' }); } catch { names = null; }
+    document.querySelectorAll('[data-i18n]').forEach((el) => {
+      const k = el.dataset.i18n;
+      el.innerHTML = next === 'bn' && BN[k] !== undefined ? BN[k] : EN[k];
+    });
+    document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === next)));
+    if (remember) { try { localStorage.setItem('golicat-lang', next); } catch {} }
+    if (data) render(); else $('statsNote').textContent = T[lang].loading;
+  }
+
+  document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang, true)));
+
+  // ---- helpers --------------------------------------------------------------------
+  const t = () => T[lang];
+  const country = (cc) => cc === 'XX' ? t().elsewhere : (names ? names.of(cc) : cc);
+  const dayLabel = (d, o) => new Date(d + 'T00:00:00').toLocaleDateString(LOCALE[lang], o || { day: 'numeric', month: 'short' });
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let data = null;
+
+  async function load() {
+    try {
+      const r = await fetch('/api/downloads', { cache: 'no-store' });
+      if (!r.ok) throw 0;
+      data = await r.json();
+      render();
+    } catch {
+      if (!data) $('statsNote').textContent = t().unavailable;
+    }
+  }
+
+  function render() {
+    const d = data;
+    $('countLine').hidden = false;
+    $('countLine').innerHTML = d.total > 0
+      ? t().countSome(fmt.format(d.total), { n: d.total, today: d.today, todayF: fmt.format(d.today) })
+      : t().countNone;
+    $('sTotal').textContent = fmt.format(d.total);
+    $('s7').textContent = fmt.format(d.last7);
+    $('sToday').textContent = fmt.format(d.today);
+    $('sCountries').textContent = fmt.format(d.countries.filter((c) => c.country !== 'XX').length);
+    drawChart(d.days);
+    if (d.countries.length) {
+      const max = Math.max(...d.countries.map((c) => c.n));
+      $('places').innerHTML = d.countries.slice(0, 8).map((c) =>
+        `<li><span class="name">${esc(country(c.country))}</span>` +
+        `<span class="track"><span class="fill" style="display:block;width:${(c.n / max) * 100}%"></span></span><span class="n">${fmt.format(c.n)}</span></li>`).join('');
+    } else {
+      $('places').innerHTML = `<li><span class="name" style="color:var(--soft)">${t().firstCountry}</span><span class="track"><span class="fill" style="display:block;width:100%;background:var(--slotc)"></span></span><span class="n">${fmt.format(0)}</span></li>`;
+    }
+    $('placesBox').hidden = false;
+    $('statsNote').textContent = t().note(d.since ? dayLabel(d.since, { day: 'numeric', month: 'long', year: 'numeric' }) : '');
+  }
+
+  function drawChart(rows) {
+    const el = $('chart');
+    const max = Math.max(0, ...rows.map((r) => r.n));
+    // Always draw the graph. With no downloads yet the scale runs 0–4 so the
+    // grid, the days and an empty slot for every day still show.
+    const scaleMax = Math.max(max, 4);
+    const W = Math.max(280, el.clientWidth || 600), H = 170, m = { t: 8, r: 2, b: 24, l: 30 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const raw = scaleMax / 4, p = Math.pow(10, Math.floor(Math.log10(Math.max(raw, 1))));
+    let step = 10 * p; for (const f of [1, 2, 5]) if (raw <= f * p) { step = f * p; break; }
+    step = Math.max(1, step);
+    const top = Math.ceil(scaleMax / step) * step, y = (n) => m.t + ih - (n / top) * ih;
+    const slot = iw / rows.length, bw = Math.max(1, slot - 2), every = Math.ceil(rows.length / Math.max(2, Math.floor(iw / 64)));
+    let s = '';
+    for (let v = 0; v <= top; v += step) s += `<line class="${v ? 'gl' : 'bl'}" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${m.l - 6}" y="${y(v) + 4}" text-anchor="end">${fmt.format(v)}</text>`;
+    rows.forEach((r, i) => {
+      const x = m.l + i * slot + 1, h = ih * (r.n / top), yt = m.t + ih - h, rr = Math.min(4, bw / 2, h);
+      const bar = r.n
+        ? `<path class="bar" d="M${x},${m.t + ih} V${yt + rr} Q${x},${yt} ${x + rr},${yt} H${x + bw - rr} Q${x + bw},${yt} ${x + bw},${yt + rr} V${m.t + ih} Z"/>`
+        : `<rect class="slot" x="${x}" y="${m.t + ih - 3}" width="${bw}" height="3" rx="1.5"/>`;
+      s += `<g class="col" data-i="${i}">${bar}<rect class="hit" x="${m.l + i * slot}" y="${m.t}" width="${slot}" height="${ih}"/></g>`;
+      if ((i % every === 0 && rows.length - 1 - i >= every / 2) || i === rows.length - 1) s += `<text class="ax" x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${dayLabel(r.day)}</text>`;
+    });
+    if (max === 0) s += `<text class="emptymark" x="${m.l + iw / 2}" y="${m.t + ih / 2 + 5}" text-anchor="middle">${esc(t().empty)}</text>`;
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t().chartLabel(fmt.format(max)))}">${s}</svg><div class="tip"></div>`;
+    const tip = el.querySelector('.tip'); let on = null;
+    const show = (g) => {
+      if (on) on.classList.remove('on'); on = g; g.classList.add('on');
+      const r = rows[+g.dataset.i], k = el.querySelector('svg').getBoundingClientRect().width / W;
+      tip.innerHTML = t().tip(dayLabel(r.day, { weekday: 'short', day: 'numeric', month: 'short' }), fmt.format(r.n), r.n);
+      tip.style.left = Math.min(Math.max((m.l + (+g.dataset.i + .5) * slot) * k, 90), el.clientWidth - 90) + 'px';
+      tip.style.top = Math.max(y(r.n) * k, 40) + 'px';
+      tip.classList.add('show');
+    };
+    el.querySelectorAll('.col').forEach((g) => { g.addEventListener('pointerenter', () => show(g)); g.addEventListener('click', () => show(g)); });
+    el.querySelector('svg').addEventListener('pointerleave', () => { if (on) on.classList.remove('on'); on = null; tip.classList.remove('show'); });
+  }
+
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => data && drawChart(data.days), 150); });
+  setLang(pickInitial(), false);
+  load();
+  setInterval(load, 60000);
+})();
+</script>
+</body>
+</html>

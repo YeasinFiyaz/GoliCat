@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoliCat privacy policy</title>
+<meta name="theme-color" content="#D7263D">
+<link rel="icon" href="/favicon.png">
+<style>
+  :root { --red:#D7263D; --ink:#2A1F19; --soft:#5E5047; --paper:#FBF6EE; --field:#F2EADF; --accent:#C8243A; --pad:clamp(16px, 4vw, 40px); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --ink:#F3EBE1; --soft:#BDAE9F; --paper:#17120F; --field:#221B16; --accent:#E85D6C; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:17px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Bengali","Nirmala UI","Hind Siliguri",sans-serif; }
+  html[lang="bn"] body { line-height:1.8; }
+  a { color:inherit; }
+  .wrap { max-width:1180px; margin:0 auto; padding:0 var(--pad); }
+  .bar { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-top:20px; padding-bottom:20px; }
+  .brand { display:flex; align-items:center; gap:12px; text-decoration:none; font-weight:800; font-size:20px; }
+  .brand img { width:44px; height:44px; border-radius:12px; }
+  .lang { display:inline-flex; background:var(--field); border-radius:999px; padding:4px; }
+  .lang button { border:0; background:none; color:var(--soft); font:inherit; font-size:15px; padding:6px 16px; border-radius:999px; cursor:pointer; }
+  .lang button[aria-pressed="true"] { background:var(--red); color:#fff; font-weight:700; }
+  .lang button:focus-visible, a:focus-visible { outline:3px solid var(--ink); outline-offset:3px; }
+  article { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 2fr); gap:20px clamp(24px, 5vw, 72px); padding-top:clamp(24px, 5vw, 56px); padding-bottom:clamp(56px, 8vw, 112px); }
+  .head { position:sticky; top:24px; align-self:start; }
+  h1 { font-size:clamp(36px, 4.6vw, 60px); line-height:1.02; letter-spacing:-0.035em; margin:0; }
+  .date { color:var(--soft); font-size:15px; margin:16px 0 0; }
+  .short { background:var(--field); border-radius:24px; padding:clamp(20px, 3vw, 32px); font-size:19px; margin:0 0 12px; }
+  .short h2 { margin-top:0; }
+  h2 { font-size:22px; letter-spacing:-0.01em; margin:40px 0 8px; }
+  ul { padding-left:1.2em; margin:0; }
+  li { margin:0 0 10px; }
+  li::marker { color:var(--accent); }
+  p { margin:0 0 10px; }
+  footer { background:var(--field); }
+  footer .wrap { padding-top:28px; padding-bottom:28px; color:var(--soft); font-size:15px; }
+  [hidden] { display:none !important; }
+  @media (max-width:860px) { article { grid-template-columns:1fr; } .head { position:static; } }
+  @media (max-width:640px) { body { font-size:16px; } .brand span { display:none; } }
+</style>
+</head>
+<body>
+<div class="wrap bar">
+  <a class="brand" href="/get/"><img src="/get/img/icon.png" alt=""><span>GoliCat</span></a>
+  <div class="lang" role="group" aria-label="Language / ভাষা">
+    <button type="button" data-lang="en" lang="en">English</button>
+    <button type="button" data-lang="bn" lang="bn">বাংলা</button>
+  </div>
+</div>
+
+<main class="wrap">
+<article data-lang-block="en">
+  <div class="head">
+    <h1>GoliCat privacy policy</h1>
+    <p class="date">Last updated 21 November 2026 · <a href="/get/">Back to GoliCat</a></p>
+  </div>
+  <div>
+    <div class="short">
+      <h2>The short version</h2>
+      <p>The GoliCat app has no accounts, ads, analytics or trackers. Your location stays on your phone, except while you choose to share it live. The download page only counts downloads (see below).</p>
+    </div>
+
+    <h2>Location</h2>
+    <ul>
+      <li>GoliCat uses your phone's location only while a trip is running ("Start roaming" until "End trip"), to move the cat and decide what it's doing.</li>
+      <li>A trip keeps running when you close the app or lock the screen, until you tap "End trip". Android shows a "GoliCat is roaming with you" notification for as long as it runs.</li>
+      <li>Your office, your home and your settings are saved <b>only on your phone</b>. Uninstalling the app deletes them.</li>
+      <li>The trip comic contains moments, the trip's length and its distance. It never contains coordinates, routes or addresses. It is only shared if you save or share it yourself.</li>
+    </ul>
+
+    <h2>Live sharing (only when you turn it on)</h2>
+    <ul>
+      <li>When you start a live share, your phone sends your <b>latest position</b> (latitude and longitude, accuracy, speed, direction and what the cat is doing) to the GoliCat server every few seconds.</li>
+      <li>Anyone who has the link can see that position. Every share gets a new, hard-to-guess link. Only send it to people you trust.</li>
+      <li>The server keeps only the newest position, never a history of where you went.</li>
+      <li>The position is deleted as soon as you stop sharing or end the trip, or when the time limit you chose runs out (24 hours at most). Everything left about that share is erased within an hour after that.</li>
+      <li>The server runs on Cloudflare Workers. Cloudflare handles the network traffic (including IP addresses) under its own <a href="https://www.cloudflare.com/privacypolicy/">privacy policy</a>. GoliCat does not keep logs of who opened a link.</li>
+    </ul>
+
+    <h2>Download counts</h2>
+    <ul>
+      <li>This download page counts page visits and downloads per day, with the country they came from, so we know how many people use GoliCat.</li>
+      <li>It does not store IP addresses, device IDs or cookies. To count each phone once per day, it keeps a one-way code made from the connection and a secret that changes every day. The code can't be turned back into an IP address or linked across days, and it is deleted after 90 days.</li>
+      <li>The app itself sends nothing for these counts.</li>
+    </ul>
+
+    <h2>Maps</h2>
+    <p>Map pictures are loaded from OpenStreetMap's tile servers, which receive your IP address and the map area being shown. See the <a href="https://osmfoundation.org/wiki/Privacy_Policy">OpenStreetMap Foundation privacy policy</a>.</p>
+
+    <h2>Photos</h2>
+    <p>GoliCat asks for photo access only when you save a trip comic to your gallery.</p>
+
+    <h2>Children</h2>
+    <p>GoliCat is not made for children under 13 and does not knowingly collect their data.</p>
+
+    <h2>Changes</h2>
+    <p>If this policy changes, the new version will be posted on this page with a new date.</p>
+  </div>
+</article>
+
+<article data-lang-block="bn" lang="bn" hidden>
+  <div class="head">
+    <h1>GoliCat প্রাইভেসি পলিসি</h1>
+    <p class="date">সর্বশেষ আপডেট ২১ নভেম্বর ২০২৬ · <a href="/get/">GoliCat-এ ফিরে যান</a></p>
+  </div>
+  <div>
+    <div class="short">
+      <h2>সংক্ষেপে</h2>
+      <p>GoliCat অ্যাপে কোনো অ্যাকাউন্ট, বিজ্ঞাপন, অ্যানালিটিক্স বা ট্র্যাকার নেই। আপনার লোকেশন আপনার ফোনেই থাকে, শুধু আপনি নিজে লাইভ শেয়ার করলে ছাড়া। ডাউনলোড পেজ শুধু ডাউনলোড গোনে (নিচে দেখুন)।</p>
+    </div>
+
+    <h2>লোকেশন</h2>
+    <ul>
+      <li>GoliCat আপনার ফোনের লোকেশন ব্যবহার করে শুধু ট্রিপ চলার সময় ("Start roaming" থেকে "End trip" পর্যন্ত), বিড়ালকে নড়াতে আর সে কী করবে তা ঠিক করতে।</li>
+      <li>অ্যাপ বন্ধ করলে বা স্ক্রিন লক করলেও ট্রিপ চলতে থাকে, যতক্ষণ না আপনি "End trip" চাপেন। যতক্ষণ ট্রিপ চলে, Android একটি "GoliCat is roaming with you" নোটিফিকেশন দেখায়।</li>
+      <li>আপনার অফিস, বাসা আর সেটিংস সেভ থাকে <b>শুধু আপনার ফোনে</b>। অ্যাপ আনইনস্টল করলে এগুলো মুছে যায়।</li>
+      <li>ট্রিপ কমিকে থাকে কিছু মুহূর্ত, ট্রিপের সময় আর দূরত্ব। এতে কখনো কোঅর্ডিনেট, রুট বা ঠিকানা থাকে না। আপনি নিজে সেভ বা শেয়ার করলেই কেবল এটি শেয়ার হয়।</li>
+    </ul>
+
+    <h2>লাইভ শেয়ারিং (শুধু আপনি চালু করলে)</h2>
+    <ul>
+      <li>লাইভ শেয়ার শুরু করলে আপনার ফোন কয়েক সেকেন্ড পরপর আপনার <b>সর্বশেষ অবস্থান</b> (অক্ষাংশ ও দ্রাঘিমাংশ, নির্ভুলতা, গতি, দিক আর বিড়ালটি কী করছে) GoliCat সার্ভারে পাঠায়।</li>
+      <li>যার কাছে লিংক আছে, সে-ই ওই অবস্থান দেখতে পারে। প্রতিটি শেয়ারে নতুন, অনুমান করা কঠিন এমন লিংক তৈরি হয়। শুধু বিশ্বাসযোগ্য মানুষদের পাঠান।</li>
+      <li>সার্ভার শুধু সবচেয়ে নতুন অবস্থানটি রাখে, আপনি কোথায় কোথায় গেছেন তার কোনো ইতিহাস রাখে না।</li>
+      <li>শেয়ারিং বা ট্রিপ বন্ধ করলে, অথবা আপনার বেছে নেওয়া সময়সীমা (সর্বোচ্চ ২৪ ঘণ্টা) শেষ হলেই অবস্থান মুছে যায়। সেই শেয়ারের বাকি সব তথ্য এর পরের এক ঘণ্টার মধ্যে মুছে ফেলা হয়।</li>
+      <li>সার্ভারটি চলে Cloudflare Workers-এ। নেটওয়ার্ক ট্রাফিক (IP অ্যাড্রেসসহ) Cloudflare নিজের <a href="https://www.cloudflare.com/privacypolicy/">প্রাইভেসি পলিসি</a> অনুযায়ী সামলায়। কে লিংক খুলেছে, GoliCat তার কোনো লগ রাখে না।</li>
+    </ul>
+
+    <h2>ডাউনলোডের হিসাব</h2>
+    <ul>
+      <li>এই ডাউনলোড পেজ প্রতিদিনের পেজ ভিজিট আর ডাউনলোড গোনে, কোন দেশ থেকে এসেছে তা সহ, যাতে বোঝা যায় কতজন GoliCat ব্যবহার করছেন।</li>
+      <li>এটি কোনো IP অ্যাড্রেস, ডিভাইস আইডি বা কুকি রাখে না। প্রতিটি ফোনকে দিনে একবার গুনতে এটি কানেকশন আর প্রতিদিন বদলানো একটি গোপন কোড থেকে তৈরি এক-মুখী একটি কোড রাখে। এই কোড থেকে IP অ্যাড্রেস বের করা যায় না, আলাদা দিনের সাথে মেলানোও যায় না, আর ৯০ দিন পর এটি মুছে যায়।</li>
+      <li>এই হিসাবের জন্য অ্যাপ নিজে কিছুই পাঠায় না।</li>
+    </ul>
+
+    <h2>ম্যাপ</h2>
+    <p>ম্যাপের ছবি আসে OpenStreetMap-এর টাইল সার্ভার থেকে, যারা আপনার IP অ্যাড্রেস আর দেখানো ম্যাপের এলাকা পায়। দেখুন <a href="https://osmfoundation.org/wiki/Privacy_Policy">OpenStreetMap Foundation-এর প্রাইভেসি পলিসি</a>।</p>
+
+    <h2>ছবি</h2>
+    <p>GoliCat ছবির অনুমতি চায় শুধু তখনই, যখন আপনি ট্রিপ কমিক গ্যালারিতে সেভ করেন।</p>
+
+    <h2>শিশু</h2>
+    <p>GoliCat ১৩ বছরের কম বয়সী শিশুদের জন্য তৈরি নয় এবং জেনেশুনে তাদের কোনো তথ্য সংগ্রহ করে না।</p>
+
+    <h2>পরিবর্তন</h2>
+    <p>এই পলিসি বদলালে নতুন তারিখসহ নতুন সংস্করণ এই পেজেই দেওয়া হবে। কোনো অমিল থাকলে ইংরেজি সংস্করণটিই মূল হিসেবে গণ্য হবে।</p>
+  </div>
+</article>
+</main>
+
+<footer><div class="wrap">GoliCat · <a href="/get/">Download</a></div></footer>
+
+<script>
+(() => {
+  function pick() {
+    const q = new URLSearchParams(location.search).get('lang');
+    if (q === 'bn' || q === 'en') return q;
+    try { const s = localStorage.getItem('golicat-lang'); if (s === 'bn' || s === 'en') return s; } catch {}
+    return (navigator.languages || [navigator.language || '']).some((l) => /^bn\b/i.test(l)) ? 'bn' : 'en';
+  }
+  function set(lang, remember) {
+    document.documentElement.lang = lang;
+    document.title = lang === 'bn' ? 'GoliCat প্রাইভেসি পলিসি' : 'GoliCat privacy policy';
+    document.querySelectorAll('[data-lang-block]').forEach((el) => { el.hidden = el.dataset.langBlock !== lang; });
+    document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+    if (remember) { try { localStorage.setItem('golicat-lang', lang); } catch {} }
+  }
+  document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => set(b.dataset.lang, true)));
+  set(pick(), false);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+# GoliCat live-share relay + download page + download dashboard. Deployed ONLY to
+# the yeasinfiyaz@gmail.com Cloudflare account (never the NRF account).
+# Use deploy.sh, which isolates the wrangler login.
+name = "golicat"
+main = "src/worker.js"
+compatibility_date = "2025-10-01"
+workers_dev = true
+
+[assets]
+directory = "../build/web"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+# The worker sees /get/* first so it can count downloads, and guards /stats/*.
+run_worker_first = ["/api/*", "/", "/get/*", "/stats", "/stats/*"]
+
+[[durable_objects.bindings]]
+name = "SHARES"
+class_name = "Share"
+
+# Download counts for the private dashboard at /stats/.
+[[durable_objects.bindings]]
+name = "STATS"
+class_name = "Stats"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Share"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Stats"]
+
+# Secrets (set with: ./deploy.sh secret put NAME):
+#   STATS_PASSWORD  dashboard password (copy kept in share/.stats-password, git-ignored)
+#   STATS_SALT      random salt for the one-day "seen" codes

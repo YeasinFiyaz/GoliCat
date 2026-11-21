@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>GoliCat Downloads</title>
+<link rel="icon" href="/favicon.png">
+<style>
+  :root {
+    --paper:#FBF6EE; --card:#FFFDF9; --ink:#2E221B; --muted:#6B5D52; --faint:#9A8B7E;
+    --line:#E8DFD2; --grid:#EFE7DB; --bar:#C8243A; --bar-hover:#9C1A2D; --accent:#D7263D;
+    --chip:#F3ECE1; --focus:#2E221B; --shadow:0 1px 2px rgba(46,34,27,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#1D1713; --card:#2A221D; --ink:#F3EBE1; --muted:#B9AA9B; --faint:#8E7F72;
+      --line:#3A2F28; --grid:#342A24; --bar:#E85D6C; --bar-hover:#F28B96; --accent:#E85D6C;
+      --chip:#3A2F28; --focus:#F3EBE1; --shadow:none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#1D1713; --card:#2A221D; --ink:#F3EBE1; --muted:#B9AA9B; --faint:#8E7F72;
+    --line:#3A2F28; --grid:#342A24; --bar:#E85D6C; --bar-hover:#F28B96; --accent:#E85D6C;
+    --chip:#3A2F28; --focus:#F3EBE1; --shadow:none;
+  }
+  * { box-sizing:border-box; }
+  html, body { background:var(--paper); }
+  body { margin:0; color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Bengali",sans-serif; -webkit-font-smoothing:antialiased; }
+  main { max-width:960px; margin:0 auto; padding:24px 16px 56px; }
+  button, input, select { font:inherit; color:inherit; }
+  :focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+  .num { font-variant-numeric:tabular-nums; }
+
+  /* header */
+  .top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .top img { width:44px; height:44px; border-radius:12px; }
+  .top h1 { font-size:22px; line-height:1.2; margin:0; }
+  .top h1 small { display:block; font-size:13px; font-weight:500; color:var(--muted); }
+  .top .spacer { flex:1; }
+  .linkbtn { background:none; border:0; padding:6px 4px; color:var(--muted); cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+  .linkbtn:hover { color:var(--ink); }
+
+  /* login */
+  .login { max-width:380px; margin:12vh auto 0; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:24px; box-shadow:var(--shadow); }
+  .login h1 { font-size:20px; margin:14px 0 4px; }
+  .login p { color:var(--muted); margin:0 0 16px; font-size:14px; }
+  .login img { width:56px; height:56px; border-radius:14px; display:block; }
+  .field { width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--paper); }
+  .check { display:flex; gap:8px; align-items:center; margin:12px 0 16px; color:var(--muted); font-size:14px; }
+  .primary { width:100%; border:0; border-radius:12px; padding:12px 16px; background:var(--accent); color:#fff; font-weight:700; cursor:pointer; }
+  .primary:disabled { opacity:.6; cursor:default; }
+  .error { color:var(--accent); font-size:14px; min-height:20px; margin:10px 0 0; }
+
+  /* controls */
+  .controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:22px 0 14px; }
+  .seg { display:inline-flex; background:var(--chip); border-radius:10px; padding:3px; }
+  .seg button { border:0; background:none; padding:6px 12px; border-radius:8px; cursor:pointer; color:var(--muted); font-size:14px; }
+  .seg button[aria-pressed="true"] { background:var(--card); color:var(--ink); font-weight:600; box-shadow:var(--shadow); }
+  .updated { color:var(--faint); font-size:13px; margin-left:auto; }
+
+  /* tiles */
+  .tiles { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:var(--shadow); min-width:0; }
+  .tile .label { color:var(--muted); font-size:13px; }
+  .tile .value { font-size:32px; font-weight:700; line-height:1.15; margin-top:4px; letter-spacing:-.01em; }
+  .tile .sub { color:var(--faint); font-size:12.5px; margin-top:2px; }
+  .tile.hero .value { color:var(--accent); font-size:40px; }
+
+  /* cards */
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 18px 14px; margin-top:14px; box-shadow:var(--shadow); }
+  .card h2 { font-size:16px; margin:0; }
+  .card .head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+  .card .head p { margin:0; color:var(--muted); font-size:13px; }
+  .card .head .linkbtn { margin-left:auto; font-size:13px; }
+  .grid2 { display:grid; grid-template-columns:3fr 2fr; gap:14px; }
+  .grid2 .card { margin-top:14px; }
+
+  /* chart */
+  .chart { position:relative; }
+  .chart svg { display:block; width:100%; height:auto; overflow:visible; }
+  .chart .axis text { fill:var(--faint); font-size:11px; }
+  .chart .gridline { stroke:var(--grid); stroke-width:1; }
+  .chart .baseline { stroke:var(--line); stroke-width:1; }
+  .chart .bar { fill:var(--bar); }
+  .chart .col.on .bar { fill:var(--bar-hover); }
+  .chart .hit { fill:transparent; cursor:default; }
+  .tip { position:absolute; pointer-events:none; background:var(--ink); color:var(--paper); border-radius:10px; padding:8px 10px; font-size:12.5px; line-height:1.4; white-space:nowrap; transform:translate(-50%, calc(-100% - 10px)); opacity:0; transition:opacity .1s; z-index:2; }
+  .tip b { font-size:13.5px; }
+  .tip.show { opacity:1; }
+  .empty { color:var(--muted); text-align:center; padding:28px 8px; }
+
+  /* tables */
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:left; color:var(--muted); font-weight:500; font-size:12.5px; padding:6px 8px; border-bottom:1px solid var(--line); }
+  td { padding:8px; border-bottom:1px solid var(--grid); vertical-align:middle; }
+  tr:last-child td { border-bottom:0; }
+  th.r, td.r { text-align:right; }
+  .inline { display:flex; align-items:center; gap:8px; }
+  .inline .track { flex:1; height:8px; min-width:40px; }
+  .inline .fill { height:8px; background:var(--bar); border-radius:0 4px 4px 0; min-width:2px; }
+  .flag { font-size:16px; width:22px; display:inline-block; }
+  .tablewrap { max-height:360px; overflow:auto; }
+
+  .notes { color:var(--muted); font-size:13px; margin-top:18px; line-height:1.6; }
+  .notes p { margin:4px 0; }
+
+  @media (max-width:760px) {
+    .tiles { grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .grid2 { grid-template-columns:1fr; gap:0; }
+    .tile .value { font-size:28px; }
+    .tile.hero .value { font-size:32px; }
+    .updated { margin-left:0; width:100%; }
+  }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+
+<!-- Password screen -->
+<section id="login" class="login" hidden>
+  <img src="/get/img/icon.png" alt="">
+  <h1>GoliCat downloads</h1>
+  <p>Private dashboard. Enter the dashboard password.</p>
+  <form id="loginForm" autocomplete="on">
+    <input type="text" name="username" value="golicat" autocomplete="username" hidden>
+    <label for="pw" class="sr" hidden>Password</label>
+    <input id="pw" class="field" type="password" autocomplete="current-password" placeholder="Password" required>
+    <label class="check"><input id="remember" type="checkbox" checked> Keep me signed in on this device</label>
+    <button id="loginBtn" class="primary" type="submit">Open dashboard</button>
+    <p id="loginErr" class="error" role="alert"></p>
+  </form>
+</section>
+
+<!-- Dashboard -->
+<main id="dash" hidden>
+  <div class="top">
+    <img src="/get/img/icon.png" alt="">
+    <h1>GoliCat downloads<small>From golicat.yeasinfiyaz.workers.dev/get/</small></h1>
+    <span class="spacer"></span>
+    <button class="linkbtn" id="logout" type="button">Sign out</button>
+  </div>
+
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Time range" id="range">
+      <button type="button" data-days="7">7 days</button>
+      <button type="button" data-days="30" aria-pressed="true">30 days</button>
+      <button type="button" data-days="90">90 days</button>
+      <button type="button" data-days="365">1 year</button>
+    </div>
+    <span class="updated" id="updated" aria-live="polite"></span>
+  </div>
+
+  <div class="tiles">
+    <div class="tile hero"><div class="label">Total downloads</div><div class="value num" id="tTotal">–</div><div class="sub" id="tTotalSub"></div></div>
+    <div class="tile"><div class="label">Today</div><div class="value num" id="tToday">–</div><div class="sub" id="tTodaySub"></div></div>
+    <div class="tile"><div class="label">Last 7 days</div><div class="value num" id="t7">–</div><div class="sub" id="t7Sub"></div></div>
+    <div class="tile"><div class="label">Page visits → download</div><div class="value num" id="tRate">–</div><div class="sub" id="tRateSub"></div></div>
+  </div>
+
+  <section class="card">
+    <div class="head">
+      <h2>Downloads per day</h2>
+      <p id="chartSub"></p>
+      <button class="linkbtn" id="toggleTable" type="button" aria-expanded="false">Show as table</button>
+    </div>
+    <div class="chart" id="chart"></div>
+    <div class="tablewrap" id="dayTable" hidden></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="head"><h2>Where people download from</h2><p id="countrySub"></p></div>
+      <div class="tablewrap" id="countries"></div>
+    </section>
+    <section class="card">
+      <div class="head"><h2>Version and phone type</h2></div>
+      <div id="versions"></div>
+    </section>
+  </div>
+
+  <div class="notes">
+    <p id="since"></p>
+    <p>A download is counted when the file starts downloading. It doesn't tell whether the app was installed. Link previews (WhatsApp, Messenger, Telegram) and bots are not counted.</p>
+    <p>"People" counts each phone once per day. No IP addresses or device IDs are stored. Times are Dhaka time. The page refreshes itself every minute.</p>
+  </div>
+</main>
+
+<script>
+(() => {
+  const KEY = 'golicat-stats-pw';
+  const $ = (id) => document.getElementById(id);
+  const fmt = new Intl.NumberFormat('en-US');
+  const regionName = (() => { try { return new Intl.DisplayNames(['en'], { type: 'region' }); } catch { return null; } })();
+  let password = '';
+  let days = 30;
+  let data = null;
+  let timer = null;
+
+  // ---- storage (optional convenience; page works without it) ----
+  const store = {
+    get() { try { return localStorage.getItem(KEY) || sessionStorage.getItem(KEY) || ''; } catch { return ''; } },
+    set(v, remember) { try { (remember ? localStorage : sessionStorage).setItem(KEY, v); } catch {} },
+    clear() { try { localStorage.removeItem(KEY); sessionStorage.removeItem(KEY); } catch {} },
+  };
+
+  // ---- API ----
+  async function load() {
+    const r = await fetch(`/stats/api?days=${days}`, { headers: { authorization: `Bearer ${password}` }, cache: 'no-store' });
+    if (r.status === 401) throw new Error('auth');
+    if (!r.ok) throw new Error('server');
+    return r.json();
+  }
+
+  async function refresh() {
+    try {
+      data = await load();
+      render();
+      $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      if (e.message === 'auth') return signOut('That password didn’t work.');
+      $('updated').textContent = 'Couldn’t reach the server. Retrying…';
+    }
+  }
+
+  function showDash() {
+    $('login').hidden = true;
+    $('dash').hidden = false;
+    clearInterval(timer);
+    timer = setInterval(refresh, 60000);
+  }
+
+  function signOut(msg) {
+    store.clear();
+    password = '';
+    clearInterval(timer);
+    $('dash').hidden = true;
+    $('login').hidden = false;
+    $('loginErr').textContent = msg || '';
+    $('pw').value = '';
+    $('pw').focus();
+  }
+
+  // ---- login ----
+  $('loginForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    password = $('pw').value.trim();
+    if (!password) return;
+    $('loginBtn').disabled = true;
+    $('loginErr').textContent = '';
+    try {
+      data = await load();
+      store.set(password, $('remember').checked);
+      showDash();
+      render();
+      $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      $('loginErr').textContent = e.message === 'auth' ? 'That password didn’t work.' : 'Couldn’t reach the server. Try again.';
+    } finally {
+      $('loginBtn').disabled = false;
+    }
+  });
+  $('logout').addEventListener('click', () => signOut());
+
+  // ---- range ----
+  $('range').addEventListener('click', (ev) => {
+    const b = ev.target.closest('button[data-days]');
+    if (!b) return;
+    days = +b.dataset.days;
+    for (const x of $('range').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b));
+    refresh();
+  });
+
+  $('toggleTable').addEventListener('click', () => {
+    const show = $('dayTable').hidden;
+    $('dayTable').hidden = !show;
+    $('chart').hidden = show;
+    $('toggleTable').textContent = show ? 'Show as chart' : 'Show as table';
+    $('toggleTable').setAttribute('aria-expanded', String(show));
+  });
+
+  // ---- render ----
+  const dayLabel = (d, opts) => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', opts || { day: 'numeric', month: 'short' });
+  const plural = (n, one, many) => `${fmt.format(n)} ${n === 1 ? one : many}`;
+  const flag = (cc) => /^[A-Z]{2}$/.test(cc) && cc !== 'XX'
+    ? String.fromCodePoint(...[...cc].map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) : '🌐';
+  const country = (cc) => cc === 'XX' ? 'Unknown' : (regionName ? regionName.of(cc) : cc);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function render() {
+    if (!data) return;
+    const t = data.totals;
+    const rangeName = days === 365 ? 'the last year' : `the last ${days} days`;
+
+    $('tTotal').textContent = fmt.format(t.all.downloads.n);
+    $('tTotalSub').textContent = data.counting_since ? `since ${dayLabel(data.counting_since, { day: 'numeric', month: 'short', year: 'numeric' })}` : 'counting from now';
+    $('tToday').textContent = fmt.format(t.today.downloads.n);
+    $('tTodaySub').textContent = plural(t.today.visits.n, 'page visit', 'page visits');
+    $('t7').textContent = fmt.format(t.last7.downloads.n);
+    $('t7Sub').textContent = plural(t.last7.downloads.u, 'person', 'people') + ' (per day)';
+    const v = t.range.visits.n, d = t.range.downloads.n;
+    $('tRate').textContent = v ? Math.round((d / v) * 100) + '%' : '–';
+    $('tRateSub').textContent = `${fmt.format(d)} of ${plural(v, 'visit', 'visits')}, ${rangeName}`;
+
+    $('chartSub').textContent = `${plural(d, 'download', 'downloads')} in ${rangeName}`;
+    drawChart(data.days);
+    drawDayTable(data.days);
+    drawCountries(data.countries);
+    drawVersions(data.versions);
+    $('since').textContent = data.counting_since
+      ? `Counting started ${dayLabel(data.counting_since, { day: 'numeric', month: 'long', year: 'numeric' })}. Downloads before that day weren't recorded.`
+      : 'Counting has started. Nothing has been downloaded since then yet.';
+  }
+
+  // Bar chart: one series (downloads per day), single hue, rounded data-ends,
+  // 2px gaps, recessive grid, hover tooltip on a full-height hit column.
+  function drawChart(rows) {
+    const el = $('chart');
+    const W = Math.max(300, el.clientWidth || 600), H = 220;
+    const m = { t: 10, r: 4, b: 26, l: 34 };
+    const iw = W - m.l - m.r, ih = H - m.t - m.b;
+    const max = Math.max(...rows.map((r) => r.downloads));
+    if (max === 0) {
+      el.innerHTML = `<div class="empty">No downloads in ${days === 365 ? 'the last year' : `the last ${days} days`} yet. Share the download link and they'll show up here within a minute.</div>`;
+      return;
+    }
+    const step = niceStep(max);
+    const top = Math.ceil(max / step) * step;
+    const y = (n) => m.t + ih - (n / top) * ih;
+    const slot = iw / rows.length;
+    const gap = rows.length > 120 ? 1 : 2;
+    const bw = Math.max(1, slot - gap);
+    const r = Math.min(4, bw / 2);
+    const every = Math.ceil(rows.length / Math.max(2, Math.floor(iw / 64)));
+
+    let g = '';
+    for (let v = 0; v <= top; v += step) {
+      g += `<line class="${v === 0 ? 'baseline' : 'gridline'}" x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}"/>`;
+      g += `<text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${fmt.format(v)}</text>`;
+    }
+    let bars = '';
+    rows.forEach((row, i) => {
+      const x = m.l + i * slot + gap / 2;
+      const h = ih * (row.downloads / top);
+      const yTop = m.t + ih - h;
+      let shape = '';
+      if (row.downloads > 0) {
+        const rr = Math.min(r, h);
+        // Rounded top corners, square at the baseline.
+        shape = `<path class="bar" d="M${x},${m.t + ih} V${yTop + rr} Q${x},${yTop} ${x + rr},${yTop} H${x + bw - rr} Q${x + bw},${yTop} ${x + bw},${yTop + rr} V${m.t + ih} Z"/>`;
+      }
+      const label = (i % every === 0 || i === rows.length - 1) && !(i !== rows.length - 1 && rows.length - 1 - i < every / 2)
+        ? `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${dayLabel(row.day)}</text>` : '';
+      bars += `<g class="col" data-i="${i}">${shape}<rect class="hit" x="${m.l + i * slot}" y="${m.t}" width="${slot}" height="${ih}"/></g>${label ? `<g class="axis">${label}</g>` : ''}`;
+    });
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Downloads per day, ${rows.length} days. Highest day: ${fmt.format(max)}.">
+      <g class="axis">${g}</g>${bars}</svg><div class="tip" id="tip"></div>`;
+
+    const tip = el.querySelector('#tip');
+    let on = null;
+    const show = (col) => {
+      if (on) on.classList.remove('on');
+      on = col;
+      col.classList.add('on');
+      const row = rows[+col.dataset.i];
+      const hit = col.querySelector('.hit');
+      const box = el.getBoundingClientRect();
+      const svgBox = el.querySelector('svg').getBoundingClientRect();
+      const scale = svgBox.width / W;
+      const cx = (+hit.getAttribute('x') + slot / 2) * scale;
+      const cy = y(row.downloads) * scale;
+      tip.innerHTML = `<b>${dayLabel(row.day, { weekday: 'short', day: 'numeric', month: 'short' })}</b><br>` +
+        `${plural(row.downloads, 'download', 'downloads')}<br>${plural(row.people, 'person', 'people')} · ${plural(row.visits, 'page visit', 'page visits')}`;
+      tip.style.left = Math.min(Math.max(cx, 80), box.width - 80) + 'px';
+      tip.style.top = Math.max(cy, 66) + 'px'; // stays inside the chart, never over the header
+      tip.classList.add('show');
+    };
+    const hide = () => { if (on) on.classList.remove('on'); on = null; tip.classList.remove('show'); };
+    el.querySelectorAll('.col').forEach((col) => {
+      col.addEventListener('pointerenter', () => show(col));
+      col.addEventListener('click', () => show(col));
+    });
+    el.querySelector('svg').addEventListener('pointerleave', hide);
+  }
+
+  function niceStep(max) {
+    const raw = max / 4;
+    const p = Math.pow(10, Math.floor(Math.log10(Math.max(raw, 1))));
+    for (const f of [1, 2, 5, 10]) if (raw <= f * p) return Math.max(1, f * p);
+    return 10 * p;
+  }
+
+  function drawDayTable(rows) {
+    const body = rows.slice().reverse().map((r) =>
+      `<tr><td>${dayLabel(r.day, { weekday: 'short', day: 'numeric', month: 'short' })}</td><td class="r num">${fmt.format(r.downloads)}</td><td class="r num">${fmt.format(r.people)}</td><td class="r num">${fmt.format(r.visits)}</td></tr>`).join('');
+    $('dayTable').innerHTML = `<table><thead><tr><th>Day</th><th class="r">Downloads</th><th class="r">People</th><th class="r">Page visits</th></tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  function drawCountries(rows) {
+    const list = rows.filter((r) => r.downloads > 0 || r.visits > 0);
+    $('countrySub').textContent = list.length ? plural(list.length, 'country', 'countries') : '';
+    if (!list.length) { $('countries').innerHTML = '<div class="empty">Nothing yet.</div>'; return; }
+    const max = Math.max(1, ...list.map((r) => r.downloads));
+    $('countries').innerHTML = `<table><thead><tr><th>Country</th><th>Downloads</th><th class="r">Visits</th></tr></thead><tbody>${
+      list.map((r) => `<tr><td><span class="flag" aria-hidden="true">${flag(r.country)}</span>${esc(country(r.country))}</td>
+        <td><div class="inline"><span class="num" style="min-width:2.5em">${fmt.format(r.downloads)}</span><div class="track"><div class="fill" style="width:${(r.downloads / max) * 100}%"></div></div></div></td>
+        <td class="r num">${fmt.format(r.visits)}</td></tr>`).join('')}</tbody></table>`;
+  }
+
+  function drawVersions(rows) {
+    if (!rows.length) { $('versions').innerHTML = '<div class="empty">Nothing yet.</div>'; return; }
+    const kind = (abi) => abi === 'arm64' ? 'Most phones (64-bit)' : 'Older phones (32-bit)';
+    $('versions').innerHTML = `<table><thead><tr><th>Version</th><th>File</th><th class="r">Downloads</th></tr></thead><tbody>${
+      rows.map((r) => `<tr><td class="num">${esc(r.version)}</td><td>${kind(r.abi)}</td><td class="r num">${fmt.format(r.downloads)}</td></tr>`).join('')}</tbody></table>`;
+  }
+
+  let rt;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => data && drawChart(data.days), 150); });
+
+  // ---- start ----
+  password = store.get();
+  if (password) {
+    load().then((d) => { data = d; showDash(); render(); $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); })
+      .catch((e) => signOut(e.message === 'auth' ? '' : 'Couldn’t reach the server. Try again.'));
+  } else {
+    $('login').hidden = false;
+    $('pw').focus();
+  }
+})();
+</script>
+</body>
+</html>
