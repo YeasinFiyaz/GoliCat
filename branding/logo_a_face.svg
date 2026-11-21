@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- GoliCat logo A: "Scarf Face" -->
+  <g id="GoliCat-A">
+    <circle id="badge" cx="256" cy="256" r="256" fill="#FBF6EE"/>
+    <g id="scarf" stroke="#3A2A21" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+      <path id="scarf-tail-2" d="M300 372 C 352 350, 404 356, 438 330 C 430 362, 392 384, 356 392 Z" fill="#9C1A2D"/>
+      <path id="scarf-tail-1" d="M296 362 C 344 334, 402 324, 452 300 C 448 338, 420 368, 372 378 Z" fill="#D7263D"/>
+      <path id="scarf-band" d="M150 326 C 180 372, 328 384, 366 326 C 356 356, 320 390, 256 392 C 192 392, 156 360, 150 326 Z" fill="#D7263D"/>
+      <path id="scarf-fold" d="M172 344 C 210 366, 300 370, 344 344" fill="none" stroke="#9C1A2D" stroke-width="7"/>
+      <path id="scarf-knot" d="M276 340 C 300 334, 318 346, 314 368 C 300 378, 276 374, 268 360 Z" fill="#D7263D"/>
+    </g>
+    <g id="head" stroke="#3A2A21" stroke-width="9" stroke-linejoin="round" stroke-linecap="round">
+      <path id="ear-left" d="M150 196 L 128 76 L 232 142 Z" fill="#E59A4E"/>
+      <path id="ear-right" d="M362 196 L 384 76 L 348 92 L 338 118 L 348 120 L 280 142 Z" fill="#E59A4E"/>
+      <path id="ear-left-inner" d="M160 180 L 148 104 L 212 148 Z" fill="#F3A9A0" stroke="none"/>
+      <path id="ear-right-inner" d="M352 180 L 360 108 L 300 148 Z" fill="#F3A9A0" stroke="none"/>
+      <ellipse id="face" cx="256" cy="234" rx="124" ry="112" fill="#E59A4E"/>
+      <ellipse id="muzzle" cx="256" cy="286" rx="66" ry="44" fill="#F8E6C6" stroke="none"/>
+      <g id="forehead-stripes" fill="none" stroke="#A9582A" stroke-width="12">
+        <path d="M256 128 L 256 170"/>
+        <path d="M218 136 L 228 172"/>
+        <path d="M294 136 L 284 172"/>
+      </g>
+      <g id="cheek-stripes" fill="none" stroke="#A9582A" stroke-width="10">
+        <path d="M138 222 L 170 230"/><path d="M140 252 L 172 254"/>
+        <path d="M374 222 L 342 230"/><path d="M372 252 L 340 254"/>
+      </g>
+      <g id="eyes" fill="#3A2A21" stroke="none">
+        <ellipse cx="208" cy="236" rx="18" ry="24"/>
+        <ellipse cx="304" cy="236" rx="18" ry="24"/>
+        <circle cx="214" cy="228" r="6" fill="#FFFFFF"/>
+        <circle cx="310" cy="228" r="6" fill="#FFFFFF"/>
+      </g>
+      <g id="blush" fill="#F3A9A0" stroke="none" opacity="0.7">
+        <ellipse cx="172" cy="282" rx="18" ry="11"/><ellipse cx="340" cy="282" rx="18" ry="11"/>
+      </g>
+      <path id="nose" d="M244 272 L 268 272 L 256 288 Z" fill="#D8686B" stroke-width="7"/>
+      <path id="mouth" d="M232 300 C 244 312, 252 312, 256 300 C 260 312, 268 312, 280 300" fill="none" stroke-width="7"/>
+      <g id="whiskers" fill="none" stroke-width="6">
+        <path d="M126 292 L 182 294"/><path d="M130 314 L 184 306"/>
+        <path d="M386 292 L 330 294"/><path d="M382 314 L 328 306"/>
+      </g>
+    </g>
+  </g>
+</svg>

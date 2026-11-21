@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- GoliCat logo C: "Stride" — flat walking cat, scarf flying -->
+  <g id="GoliCat-C">
+    <circle id="badge" cx="256" cy="256" r="256" fill="#FBF6EE"/>
+    <path id="lane" d="M82 392 C 170 374, 342 374, 430 392" fill="none" stroke="#3A2A21" stroke-width="10" stroke-linecap="round" stroke-dasharray="24 20" opacity="0.35"/>
+    <g id="cat" fill="#3A2A21">
+      <path id="tail" d="M146 256 C 86 246, 76 172, 128 150" fill="none" stroke="#3A2A21" stroke-width="28" stroke-linecap="round"/>
+      <ellipse id="body" cx="252" cy="270" rx="118" ry="66"/>
+      <rect id="leg-1" x="168" y="300" width="34" height="84" rx="16" transform="rotate(8 185 342)"/>
+      <rect id="leg-2" x="212" y="306" width="32" height="78" rx="15"/>
+      <rect id="leg-3" x="276" y="306" width="32" height="78" rx="15"/>
+      <rect id="leg-4" x="314" y="300" width="34" height="84" rx="16" transform="rotate(-8 331 342)"/>
+      <circle id="head" cx="350" cy="214" r="70"/>
+      <path id="ear-left" d="M306 172 L 312 108 L 352 148 Z"/>
+      <path id="ear-right" d="M370 148 L 400 104 L 408 172 Z"/>
+    </g>
+    <g id="cutouts" fill="#FBF6EE">
+      <path id="ear-notch" d="M392 122 L 406 128 L 400 142 Z"/>
+      <ellipse id="eye" cx="374" cy="208" rx="9" ry="12"/>
+      <path id="nose" d="M408 230 L 422 230 L 415 241 Z"/>
+      <rect id="stripe-1" x="196" y="214" width="16" height="40" rx="8"/>
+      <rect id="stripe-2" x="232" y="208" width="16" height="40" rx="8"/>
+      <rect id="stripe-3" x="268" y="210" width="16" height="40" rx="8"/>
+    </g>
+    <g id="scarf" fill="none" stroke="#D7263D" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+      <path id="scarf-band" d="M308 266 C 330 282, 360 284, 386 268"/>
+      <path id="scarf-tail-1" d="M316 258 C 290 228, 256 212, 212 206"/>
+      <path id="scarf-tail-2" d="M314 264 C 292 244, 266 236, 236 238"/>
+    </g>
+  </g>
+</svg>
