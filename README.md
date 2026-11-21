@@ -113,23 +113,7 @@ position from the server. The relay and viewer code is in `share/` (see `share/R
 
 The download page itself shows the public numbers (total, last 7 days, today, countries,
 a 30-day chart, and a count line under the button). They come from `/api/downloads`
-(aggregates only, cached 60 s). The private page below shows more detail.
-
-### Private dashboard
-
-Private page: **https://golicat.yeasinfiyaz.workers.dev/stats/**. The password is in
-`share/.stats-password` (git-ignored) and in the Cloudflare secret `STATS_PASSWORD`.
-Change it with `echo NEWPASSWORD | ./deploy.sh secret put STATS_PASSWORD` in `share/`.
-
-- The worker serves `/get/*` itself (`run_worker_first`) and counts, per Dhaka day and
-  country: page visits, and APK downloads by version and phone type. Only the first piece
-  of a download counts, and bots, link previews (WhatsApp, Messenger, Telegram), curl and
-  headless browsers are skipped.
-- "People" uses a one-way code salted per day (`STATS_SALT`), so no IPs or device IDs
-  are stored. Those codes are deleted after 90 days. Counting started 21 Nov 2026.
-- Totals live in the `Stats` Durable Object (SQLite). The page is `share/site/stats/`.
-- When testing, send the header `x-golicat-nocount: 1` so checks never count.
-- Local: put `STATS_PASSWORD=...` and `STATS_SALT=...` in `share/.dev.vars` (git-ignored).
+(aggregates only, cached 60 s). No IP addresses or device IDs are stored.
 
 ## Privacy
 
