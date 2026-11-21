@@ -15,12 +15,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 test('full share lifecycle', async () => {
   const id = rid();
   assert.equal((await call(id, 'GET', null, null)).status, 404);
-  let r = await call(id, 'POST', { until: Date.now() + 3600e3, lat: 23.78, lng: 90.394, acc: 5, mode: 'atWork', heading: 90, speed: 0, moving: false });
+  let r = await call(id, 'POST', { until: Date.now() + 3600e3, lat: 23.78, lng: 90.394, acc: 5, mode: 'atWork', heading: 90, speed: 0, moving: false, skin: 'batcat' });
   assert.equal(r.status, 200);
   r = await call(id, 'GET', null, null);
   const g = await r.json();
   assert.equal(g.status, 'live');
   assert.equal(g.state.mode, 'atWork');
+  assert.equal(g.state.skin, 'batcat');
+  const until0 = g.until;
   assert.equal(g.state.lat, 23.78);
   assert.equal(r.headers.get('cache-control'), 'no-store');
   // wrong token cannot write or stop
@@ -34,6 +36,12 @@ test('full share lifecycle', async () => {
   r = await call(id, 'POST', { lat: 23.781, lng: 90.3941, mode: 'walking', moving: true, speed: 1.3 });
   assert.equal(r.status, 200);
   assert.equal((await (await call(id, 'GET', null, null)).json()).state.mode, 'walking');
+  // a position push never extends the share the user chose
+  assert.equal((await (await call(id, 'GET', null, null)).json()).until, until0);
+  // junk avatar ids are dropped
+  await wait(1600);
+  await call(id, 'POST', { lat: 23.781, lng: 90.3941, mode: 'walking', skin: '<script>' });
+  assert.equal((await (await call(id, 'GET', null, null)).json()).state.skin, undefined);
   // junk mode / coords
   await wait(1600);
   await call(id, 'POST', { lat: 999, lng: 1, mode: 'hacker' });

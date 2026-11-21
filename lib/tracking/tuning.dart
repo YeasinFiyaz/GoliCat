@@ -2,6 +2,7 @@
 class Tuning {
   const Tuning({
     this.reliableAccuracyM = 35,
+    this.degradedAccuracyM = 90,
     this.placeAccuracyM = 50,
     this.staleAfter = const Duration(seconds: 25),
     this.staleAfterSlowSampling = const Duration(seconds: 50),
@@ -23,8 +24,13 @@ class Tuning {
     this.placeExitConfirm = const Duration(seconds: 15),
   });
 
-  /// Fixes worse than this never move the cat.
+  /// Fixes worse than this never move the cat…
   final double reliableAccuracyM;
+
+  /// …unless no reliable fix has come for [staleAfter]: then fixes up to this
+  /// accuracy are followed too, so losing the network (and assisted GPS)
+  /// degrades the track instead of freezing the cat.
+  final double degradedAccuracyM;
 
   /// Fixes worse than this are ignored by office/home detection.
   final double placeAccuracyM;

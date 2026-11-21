@@ -10,6 +10,7 @@ import '../cat/cat_painter.dart';
 import '../cat/clips.dart';
 import '../cat/pose.dart';
 import '../tracking/trip_recorder.dart';
+import 'busy.dart';
 import 'theme.dart';
 
 /// The three-panel end-of-trip comic. Contains no map, route, coordinates or
@@ -34,8 +35,11 @@ class _ComicScreenState extends State<ComicScreen> {
     return data?.buffer.asUint8List();
   }
 
+  bool _saving = false, _sharing = false;
+
   Future<void> _save() async {
-    setState(() => _busy = true);
+    if (_busy) return;
+    setState(() => _busy = _saving = true);
     try {
       final bytes = await _png();
       if (bytes == null) return;
@@ -44,20 +48,29 @@ class _ComicScreenState extends State<ComicScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Saved to your gallery (GoliCat album).')));
       }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Couldn\'t save: $e')));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Couldn\'t save to the gallery. Check GoliCat\'s photo permission and try again.')));
+      }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _busy = _saving = false);
     }
   }
 
   Future<void> _share() async {
-    final bytes = await _png();
-    if (bytes == null) return;
-    await SharePlus.instance.share(ShareParams(
-      files: [XFile.fromData(bytes, mimeType: 'image/png', name: 'golicat_comic.png')],
-      text: 'GoliCat\'s outing',
-    ));
+    if (_busy) return;
+    setState(() => _busy = _sharing = true);
+    try {
+      final bytes = await _png();
+      if (bytes == null) return;
+      await SharePlus.instance.share(ShareParams(
+        files: [XFile.fromData(bytes, mimeType: 'image/png', name: 'golicat_comic.png')],
+        text: 'GoliCat\'s outing',
+      ));
+    } finally {
+      if (mounted) setState(() => _busy = _sharing = false);
+    }
   }
 
   @override
@@ -72,9 +85,12 @@ class _ComicScreenState extends State<ComicScreen> {
         ? '${(log.distanceM / 1000).toStringAsFixed(1)} km'
         : '${(log.distanceM / 10).round() * 10} m';
     final subtitle = [
-      if (log.demo) 'Demo trip',
       date,
-      mins < 1 ? 'under a minute' : '$mins min',
+      mins < 1
+          ? 'under a minute'
+          : mins < 60
+              ? '$mins min'
+              : '${mins ~/ 60} h${mins % 60 == 0 ? '' : ' ${mins % 60} min'}',
       if (log.distanceM > 20) dist,
     ].join(' · ');
 
@@ -114,16 +130,16 @@ class _ComicScreenState extends State<ComicScreen> {
             child: Row(children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _busy ? null : _save,
-                  icon: const Icon(Icons.download),
-                  label: const Text('Save image'),
+                  onPressed: _save,
+                  icon: BusyIcon(busy: _saving, icon: Icons.download),
+                  label: BusyLabel(busy: _saving, text: 'Save image', busyText: 'Saving…'),
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                 ),
               ),
               const SizedBox(width: 10),
               OutlinedButton.icon(
                 onPressed: _share,
-                icon: const Icon(Icons.share),
+                icon: BusyIcon(busy: _sharing, icon: Icons.share),
                 label: const Text('Share'),
                 style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
               ),
@@ -159,15 +175,15 @@ class _Panel extends StatelessWidget {
       ),
       child: Stack(children: [
         // Ground line.
-        Positioned(left: 0, right: 0, bottom: 44, child: Container(height: 2, color: const Color(0x332E221B))),
+        Positioned(left: 0, right: 0, bottom: 62, child: Container(height: 2, color: const Color(0x332E221B))),
         Positioned(
           left: 0,
           right: 0,
-          bottom: 38,
+          bottom: 56,
           child: Center(
             child: SizedBox(
-              width: office ? 230 : 200,
-              height: (office ? 230 : 200) * CatCanvas.height / CatCanvas.width,
+              width: office ? 220 : 190,
+              height: (office ? 220 : 190) * CatCanvas.height / CatCanvas.width,
               child: CustomPaint(painter: CatPainter(pose)),
             ),
           ),
@@ -195,6 +211,8 @@ class _Panel extends StatelessWidget {
             ),
             child: Text(panel.caption,
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: GoliTheme.ink)),
           ),
         ),

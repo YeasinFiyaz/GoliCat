@@ -48,6 +48,8 @@ class CatDirector {
         CatMode.lost => ClipId.lost,
         CatMode.atWork => ClipId.typing,
         CatMode.atHome => ClipId.sleep,
+        CatMode.studying => ClipId.study,
+        CatMode.hangingOut => ClipId.vibe,
       };
 
   /// The loop "family" a clip belongs to (what we are coming out of).
@@ -59,6 +61,8 @@ class CatDirector {
         ClipId.unfoldMap || ClipId.lost => ClipId.lost,
         ClipId.hopOnChair || ClipId.typing || ClipId.fishGag => ClipId.typing,
         ClipId.tuckIn || ClipId.sleep || ClipId.grumpy => ClipId.sleep,
+        ClipId.sitAtDesk || ClipId.study || ClipId.stuckGag || ClipId.closeBook => ClipId.study,
+        ClipId.headphonesOn || ClipId.vibe || ClipId.danceGag || ClipId.headphonesOff => ClipId.vibe,
       };
 
   /// The transition plan from the current base loop into [target]'s loop.
@@ -76,6 +80,10 @@ class CatDirector {
         out.add(ClipId.leaveOffice);
       case ClipId.sleep:
         out.add(ClipId.wakeUp);
+      case ClipId.study:
+        out.add(ClipId.closeBook);
+      case ClipId.vibe:
+        out.add(ClipId.headphonesOff);
       case ClipId.fast:
         if (to == ClipId.walk || to == ClipId.idle || to == ClipId.tea) out.add(ClipId.skid);
       default:
@@ -91,6 +99,10 @@ class CatDirector {
         out.add(ClipId.hopOnChair);
       case ClipId.sleep:
         out.add(ClipId.tuckIn);
+      case ClipId.study:
+        out.add(ClipId.sitAtDesk);
+      case ClipId.vibe:
+        out.add(ClipId.headphonesOn);
       case ClipId.walk:
         if (fromBase == ClipId.tea) out.add(ClipId.catchUp);
       default:
@@ -169,12 +181,24 @@ class CatDirector {
           ..add(ClipId.sleep);
         _start(ClipId.grumpy);
         return true;
+      case ClipId.study:
+        _queue
+          ..clear()
+          ..add(ClipId.study);
+        _start(ClipId.stuckGag);
+        return true;
+      case ClipId.vibe:
+        _queue
+          ..clear()
+          ..add(ClipId.vibe);
+        _start(ClipId.danceGag);
+        return true;
       default:
         return false;
     }
   }
 
-  /// Jump straight into the loop for [m] (demo scene jumps, app resume).
+  /// Jump straight into the loop for [m] (app resume, viewer first state).
   void snapTo(CatMode m) {
     _mode = m;
     _queue.clear();
@@ -204,7 +228,9 @@ class CatDirector {
         _clip == ClipId.fishGag ||
         _clip == ClipId.leaveOffice && _clipT < 1.3 ||
         baseOf(_clip) == ClipId.sleep ||
-        _clip == ClipId.wakeUp && _clipT < 1.8;
+        _clip == ClipId.wakeUp && _clipT < 1.8 ||
+        baseOf(_clip) == ClipId.study && !(_clip == ClipId.closeBook && _clipT > 1.0) ||
+        baseOf(_clip) == ClipId.vibe && !(_clip == ClipId.headphonesOff && _clipT > 0.9);
     final target = forceRight ? 1.0 : _facingTarget;
     final step = dt / 0.22 * 2;
     _facing += (target - _facing).clamp(-step, step);

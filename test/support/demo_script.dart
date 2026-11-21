@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 
-import '../core/geo.dart';
-import '../tracking/fix.dart';
-import '../tracking/place_monitor.dart';
+import 'package:golicat/core/geo.dart';
+import 'package:golicat/tracking/fix.dart';
+import 'package:golicat/tracking/place_monitor.dart';
 
-/// A scripted outing on a made-up street grid near 0°N 0°E (clearly not a
-/// real place, never mixed with real trips or your saved office).
+/// A scripted outing on a made-up street grid near 0°N 0°E, used by the
+/// engine tests: walk, cha break, fast ride, office, hangout, study, home.
 class DemoScript {
   DemoScript() {
     _generate();
@@ -16,8 +16,12 @@ class DemoScript {
 
   static final office = Place(center: offsetM(origin, 520, 42), radiusM: 100);
   static final home = Place(center: offsetM(origin, 850, -150), radiusM: 60);
+  static final hangout = Place(center: offsetM(origin, 760, -95), radiusM: 60);
+  static final education = Place(center: offsetM(origin, 900, 70), radiusM: 110);
   static const officeLocal = Offset2(520, 42);
   static const homeLocal = Offset2(850, -150);
+  static const hangoutLocal = Offset2(760, -95);
+  static const educationLocal = Offset2(900, 70);
   static const chaLocal = Offset2(100, 0);
 
   /// Path keyframes: [seconds, east m, north m].
@@ -29,23 +33,13 @@ class DemoScript {
     [575, 542, 0], [604, 540, 42], // into the office
     [900, 540, 42], // at work (indoor GPS drift)
     [928, 540, 0], [1010, 668, 0], [1030, 700, 0], // leave
-    [1055, 850, 0], [1180, 850, -150], // ride, then walk home
-    [1500, 850, -150], // home
+    [1075, 760, -95], [1300, 760, -95], // hangout spot: headphones on
+    [1330, 760, 0], [1400, 900, 70], [1650, 900, 70], // university: homework
+    [1690, 850, 0], [1740, 850, -150], // walk home
+    [1950, 850, -150], // home
   ];
 
-  static const duration = 1500.0;
-
-  /// Quick jumps (seconds) for the demo controls.
-  static const scenes = <(String, double)>[
-    ('At work ⌨', 720),
-    ('Walk', 12),
-    ('Cha break', 165),
-    ('Fast ride', 280),
-    ('Pass office', 400),
-    ('Lost signal', 490),
-    ('Leave office', 1000),
-    ('Home 💤', 1330),
-  ];
+  static const duration = 1950.0;
 
   final List<LocationFix> fixes = [];
 
@@ -83,7 +77,12 @@ class DemoScript {
         acc = 18 + r.nextDouble() * 24;
         speed = (gauss() * 0.6).abs();
         spAcc = 2.5;
-      } else if (t >= 70 && t <= 200 || t >= 1180) {
+      } else if (t >= 1075 && t <= 1300 || t >= 1400 && t <= 1650) {
+        sigma = 6;
+        acc = 12 + r.nextDouble() * 14;
+        speed = (gauss() * 0.3).abs();
+        spAcc = 2.0;
+      } else if (t >= 70 && t <= 200 || t >= 1740) {
         sigma = 3.5;
         acc = 8 + r.nextDouble() * 6;
         speed = (gauss() * 0.15).abs();

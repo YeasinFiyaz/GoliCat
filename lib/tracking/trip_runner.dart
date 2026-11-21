@@ -43,8 +43,15 @@ class TripRunner {
   /// (the service was restarted by Android, or the app was reopened).
   Future<LocationProblem> start({bool resume = false}) async {
     if (session != null) return problem;
-    final p = await location.ensurePermission();
+    LocationProblem p;
+    try {
+      p = await location.ensurePermission();
+    } catch (_) {
+      return problem = LocationProblem.error;
+    }
     problem = p;
+    // A share left behind by a trip that died must not attach to this new trip.
+    if (!resume && share.active) await share.stop();
     if (p != LocationProblem.none && p != LocationProblem.approximate) return p;
     TripLog? previous;
     if (resume && store.activeTrip != null) {
@@ -56,6 +63,8 @@ class TripRunner {
       clock: clock,
       office: store.place(PlaceKind.office),
       home: store.place(PlaceKind.home),
+      education: store.place(PlaceKind.education),
+      hangout: store.place(PlaceKind.hangout),
       reducedMotion: store.reducedMotion,
       previous: previous,
     );
@@ -65,7 +74,16 @@ class TripRunner {
       problem = pr;
       _emit();
     });
-    await location.start();
+    try {
+      await location.start();
+    } catch (_) {
+      // The location plugin refused to start: don't leave a half-started trip.
+      await _fixSub?.cancel();
+      await _probSub?.cancel();
+      _fixSub = _probSub = null;
+      session = null;
+      return problem = LocationProblem.error;
+    }
     _tick = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
     await store.setTripRunning(true);
     _saveJournal();
@@ -90,6 +108,7 @@ class TripRunner {
     s.engine.motion.slowSampling = slow;
     await location.setSlow(slow);
     await share.tick(s);
+    if (session != s) return; // the trip ended while we were waiting on the network
     if (clock().difference(s.log.startedAt) > maxTrip) {
       await stop();
       return;
@@ -98,7 +117,7 @@ class TripRunner {
   }
 
   void placeChanged(PlaceKind k) {
-    session?.setPlace(k.label, store.place(k));
+    session?.setPlace(k, store.place(k));
     _emit();
   }
 
@@ -130,12 +149,13 @@ class TripRunner {
     await _probSub?.cancel();
     _fixSub = null;
     _probSub = null;
-    if (share.active) await share.stop();
-    await location.stop();
     final log = session?.finish();
     session = null;
     await store.saveActiveTrip(null);
     await store.setTripRunning(false);
+    // Tell the server first (short timeout) so the link stops working, then report.
+    if (share.active) await share.stop();
+    await location.stop();
     onStatus?.call({'running': false, if (log != null) 'log': log.toJson()});
     return log;
   }
@@ -164,8 +184,7 @@ class TripRunner {
       'moving': m?.moving ?? false,
       'lastFixAt': m?.lastFixAt?.millisecondsSinceEpoch,
       'sinceUpdateMs': snap?.sinceUpdate?.inMilliseconds,
-      'officePhase': (snap?.officePhase ?? PlacePhase.outside).name,
-      'homePhase': (snap?.homePhase ?? PlacePhase.outside).name,
+      for (final k in PlaceKind.values) '${k.label}Phase': (snap?.phase(k) ?? PlacePhase.outside).name,
       'share': {
         'active': share.active,
         'link': share.link,
@@ -223,10 +242,10 @@ class TripStatus {
   bool get hasFix => raw['lastFixAt'] != null;
   Duration? get sinceUpdate =>
       raw['sinceUpdateMs'] == null ? null : Duration(milliseconds: (raw['sinceUpdateMs'] as num).toInt());
-  PlacePhase get officePhase =>
-      PlacePhase.values.firstWhere((p) => p.name == raw['officePhase'], orElse: () => PlacePhase.outside);
-  PlacePhase get homePhase =>
-      PlacePhase.values.firstWhere((p) => p.name == raw['homePhase'], orElse: () => PlacePhase.outside);
+  PlacePhase phase(PlaceKind k) =>
+      PlacePhase.values.firstWhere((p) => p.name == raw['${k.label}Phase'], orElse: () => PlacePhase.outside);
+  PlacePhase get officePhase => phase(PlaceKind.office);
+  PlacePhase get homePhase => phase(PlaceKind.home);
   DateTime? get startedAt =>
       raw['startedAt'] == null ? null : DateTime.fromMillisecondsSinceEpoch((raw['startedAt'] as num).toInt());
 

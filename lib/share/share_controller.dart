@@ -43,6 +43,7 @@ class ShareController extends ChangeNotifier {
   DateTime? lastSentAt;
   DateTime? _lastTryAt;
   CatMode? _lastMode;
+  String? _lastSkin;
   GeoPoint? _lastPoint;
   bool _busy = false;
 
@@ -86,7 +87,7 @@ class ShareController extends ChangeNotifier {
       final r = await _client
           .post(_api(newId),
               headers: {'content-type': 'application/json', 'authorization': 'Bearer $token'},
-              body: jsonEncode({'until': end.millisecondsSinceEpoch, ...?now?.toJson()}))
+              body: jsonEncode({'until': end.millisecondsSinceEpoch, ...?now?.toJson(), if (now != null) 'skin': store.catSkinId}))
           .timeout(const Duration(seconds: 12));
       if (r.statusCode != 200) return false;
       final j = jsonDecode(r.body) as Map<String, dynamic>;
@@ -98,6 +99,7 @@ class ShareController extends ChangeNotifier {
       lastSentAt = _lastTryAt = _clock();
       _lastMode = now?.mode;
       _lastPoint = now?.point;
+      _lastSkin = store.catSkinId;
       _persist();
       notifyListeners();
       return true;
@@ -120,7 +122,7 @@ class ShareController extends ChangeNotifier {
     try {
       await _client
           .delete(_api(oldId), headers: {'authorization': 'Bearer $oldToken'})
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 4));
     } catch (_) {
       // Unreachable now: the share still expires on the server by itself.
     }
@@ -150,8 +152,9 @@ class ShareController extends ChangeNotifier {
       return;
     }
     final st = stateOf(session);
+    final skin = store.catSkinId;
     final changed = st != null &&
-        (st.mode != _lastMode || (_lastPoint != null && distanceM(_lastPoint!, st.point) > 25));
+        (st.mode != _lastMode || skin != _lastSkin || (_lastPoint != null && distanceM(_lastPoint!, st.point) > 25));
     final every = failing ? retryAfter : (st?.moving ?? false) ? movingEvery : stillEvery;
     final sinceTry = _lastTryAt == null ? null : now.difference(_lastTryAt!);
     final due = sinceTry == null || sinceTry >= every;
@@ -164,7 +167,7 @@ class ShareController extends ChangeNotifier {
       final r = await _client
           .post(_api(shareId),
               headers: {'content-type': 'application/json', 'authorization': 'Bearer $_token'},
-              body: jsonEncode({...?st?.toJson()}))
+              body: jsonEncode({...?st?.toJson(), if (st != null) 'skin': skin}))
           .timeout(const Duration(seconds: 10));
       if (id != shareId) return; // stopped meanwhile
       if (r.statusCode == 410 || r.statusCode == 403) {
@@ -172,11 +175,14 @@ class ShareController extends ChangeNotifier {
         id = null;
         _token = null;
         _persist();
-      } else if (r.statusCode == 200 || r.statusCode == 429) {
-        if (r.statusCode == 200) lastSentAt = now;
+      } else if (r.statusCode == 200) {
+        lastSentAt = now;
         failing = false;
         _lastMode = st?.mode ?? _lastMode;
+        if (st != null) _lastSkin = skin;
         _lastPoint = st?.point ?? _lastPoint;
+      } else if (r.statusCode == 429) {
+        failing = false; // too soon: the server kept the old state, so try again next tick
       } else {
         failing = true;
       }

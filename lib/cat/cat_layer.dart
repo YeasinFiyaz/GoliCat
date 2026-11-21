@@ -29,7 +29,7 @@ class CatLayer extends StatefulWidget {
   final MapProjector projector;
   final double scale;
 
-  /// Demo fast-forward: position glides use simulated seconds.
+  /// Time multiplier for position glides (1 = real time).
   final double timeScale;
   final bool reducedMotion;
   final VoidCallback? onFrame;

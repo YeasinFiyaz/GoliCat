@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../cat/cat_director.dart';
 import '../cat/cat_source.dart';
 import '../core/position_glide.dart';
+import '../places/place_store.dart';
 import 'activity_engine.dart';
 import 'fix.dart';
 import 'place_monitor.dart';
@@ -10,19 +11,20 @@ import 'trip_recorder.dart';
 import 'tuning.dart';
 
 /// Glues one trip together: engine (decisions) → director (animation) and
-/// the trip journal. Used identically by real trips and the demo.
+/// the trip journal.
 class RoamSession extends ChangeNotifier implements CatSource {
   RoamSession({
     required this.clock,
     Place? office,
     Place? home,
+    Place? education,
+    Place? hangout,
     this.tuning = const Tuning(),
-    this.demo = false,
     bool reducedMotion = false,
     TripLog? previous,
-  })  : engine = ActivityEngine(office: office, home: home, tuning: tuning),
+  })  : engine = ActivityEngine(office: office, home: home, education: education, hangout: hangout, tuning: tuning),
         director = CatDirector(reducedMotion: reducedMotion) {
-    log = previous ?? TripLog(startedAt: clock(), demo: demo);
+    log = previous ?? TripLog(startedAt: clock());
     director.onClipStart = (c) {
       log.addClip(c, clock());
       onJournalChanged?.call();
@@ -33,7 +35,6 @@ class RoamSession extends ChangeNotifier implements CatSource {
 
   final DateTime Function() clock;
   final Tuning tuning;
-  final bool demo;
   final ActivityEngine engine;
   @override
   final CatDirector director;
@@ -69,8 +70,8 @@ class RoamSession extends ChangeNotifier implements CatSource {
     notifyListeners();
   }
 
-  void setPlace(String which, Place? p) {
-    (which == 'office' ? engine.office : engine.home).placeChanged(p);
+  void setPlace(PlaceKind which, Place? p) {
+    engine.monitor(which).placeChanged(p);
     evaluate();
   }
 

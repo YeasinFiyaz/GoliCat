@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
+import 'cat_skin.dart';
 import 'pose.dart';
 
 /// GoliCat's palette.
@@ -40,9 +41,12 @@ class CatCanvas {
 
 /// Paints one [Pose]. Pure drawing: no timing, no state.
 class CatPainter extends CustomPainter {
-  CatPainter(this.pose, {this.boil = 0, this.reducedMotion = false, super.repaint});
+  CatPainter(this.pose, {this.boil = 0, this.reducedMotion = false, this.skin, super.repaint});
 
   final Pose pose;
+
+  /// Avatar to draw; defaults to the one the user picked.
+  final CatSkin? skin;
 
   /// Changes a few times a second to make lines "boil" like hand animation.
   final int boil;
@@ -54,7 +58,7 @@ class CatPainter extends CustomPainter {
     canvas.save();
     canvas.scale(s);
     canvas.translate(CatCanvas.originX, CatCanvas.originY);
-    _CatDraw(canvas, pose, reducedMotion ? 0 : boil).draw();
+    _CatDraw(canvas, pose, reducedMotion ? 0 : boil, skin ?? activeCatSkin.value).draw();
     canvas.restore();
   }
 
@@ -63,7 +67,10 @@ class CatPainter extends CustomPainter {
 }
 
 class _CatDraw {
-  _CatDraw(this.c, this.p, this.boil);
+  _CatDraw(this.c, this.p, this.boil, this.k);
+
+  /// The avatar colours.
+  final CatSkin k;
   final Canvas c;
   final Pose p;
   final int boil;
@@ -71,7 +78,7 @@ class _CatDraw {
 
   static const double inkW = 1.7;
   Paint get _ink => Paint()
-    ..color = CatInk.ink
+    ..color = k.ink
     ..style = PaintingStyle.stroke
     ..strokeWidth = inkW
     ..strokeJoin = StrokeJoin.round
@@ -99,6 +106,8 @@ class _CatDraw {
 
     if (home > 0.01) _homeBack(home);
     if (office > 0.01) _officeBack(office);
+    if (p[P.bench] > 0.01) _benchBack(p[P.bench]);
+    if (p[P.desk] > 0.01) _deskBack(p[P.desk]);
 
     c.save();
     c.translate(p[P.rootX], p[P.rootY]);
@@ -125,7 +134,9 @@ class _CatDraw {
     c.translate(p[P.rootX], p[P.rootY]);
     if (sq != 0) c.scale(1 + sq * 0.6, 1 - sq);
     if (p[P.mapVis] > 0.01) _paperMap();
+    if (p[P.desk] > 0.01) _deskFront(p[P.desk]); // the paws rest on top of it
     if (p[P.blanket] < 0.6) _leg(P.fnX, P.fnY, P.fnA1, P.fnA2, p[P.legLen]);
+    if (p[P.pencil] > 0.01) _pencil(p[P.pencil]);
     if (p[P.cha] > 0.01) _chaGlass();
     if (p[P.glassesFace] > 0.01) _glassesOnFace(p[P.glassesFace]);
     if (p[P.scarfFace] > 0.01) _scarfOverFace(p[P.scarfFace]);
@@ -171,7 +182,7 @@ class _CatDraw {
 
   void _shape(Path path, Color fill, [double alpha = 1]) {
     c.drawPath(path, _fill(fill, alpha));
-    c.drawPath(path, _ink..color = CatInk.ink.withValues(alpha: alpha.clamp(0.0, 1.0)));
+    c.drawPath(path, _ink..color = k.ink.withValues(alpha: alpha.clamp(0.0, 1.0)));
   }
 
   /// Thick outlined stroke (legs, tail, ribbons).
@@ -183,7 +194,7 @@ class _CatDraw {
     c.drawPath(
         path,
         Paint()
-          ..color = CatInk.ink.withValues(alpha: alpha)
+          ..color = k.ink.withValues(alpha: alpha)
           ..style = PaintingStyle.stroke
           ..strokeWidth = width + inkW * 2
           ..strokeCap = StrokeCap.round
@@ -226,8 +237,8 @@ class _CatDraw {
       ..arcToPoint(const Offset(5.5, -11.5), radius: const Radius.circular(5.5))
       ..quadraticBezierTo(5.5, -8, 0, 0)
       ..close();
-    c.drawPath(path, _fill(CatInk.scarf, alpha));
-    c.drawPath(path, _ink..color = CatInk.ink.withValues(alpha: alpha)..strokeWidth = 1.3);
+    c.drawPath(path, _fill(k.scarf, alpha));
+    c.drawPath(path, _ink..color = k.ink.withValues(alpha: alpha)..strokeWidth = 1.3);
     c.drawCircle(const Offset(0, -11.5), 2.1, _fill(const Color(0xFFFFFFFF), alpha));
     c.restore();
   }
@@ -236,7 +247,7 @@ class _CatDraw {
     final a = p[P.speedLines].clamp(0.0, 1.0);
     final t = p[P.scarfPhase];
     final paint = Paint()
-      ..color = CatInk.ink.withValues(alpha: 0.45 * a)
+      ..color = k.ink.withValues(alpha: 0.45 * a)
       ..strokeWidth = 1.4
       ..strokeCap = StrokeCap.round;
     for (var i = 0; i < 4; i++) {
@@ -265,9 +276,9 @@ class _CatDraw {
     final a1 = p[a1K], a2 = a1 + p[a2K];
     final knee = root + Offset(math.sin(a1), math.cos(a1)) * l;
     final paw = knee + Offset(math.sin(a2), math.cos(a2)) * l;
-    _limb([root, knee, paw], 5.6, far ? CatInk.furFar : CatInk.fur);
+    _limb([root, knee, paw], 5.6, far ? k.bodyFar : k.body);
     final pawPath = _ellipse(paw + Offset(math.sin(a2) * 0.6 + 0.8, 0.2), 3.4, 2.3, 0, n: 8, jitter: 0.15);
-    _shape(pawPath, far ? CatInk.furFar : CatInk.cream);
+    _shape(pawPath, far ? k.bodyFar : k.paw);
   }
 
   Offset _pawOf(P xK, P yK, P a1K, P a2K, double lenScale) {
@@ -293,16 +304,16 @@ class _CatDraw {
       pts.add(center + _rot(Offset(len * x, h * y * chest), rot));
     }
     final body = _blob(pts);
-    c.drawPath(body, _fill(CatInk.fur));
+    c.drawPath(body, _fill(k.body));
     c.save();
     c.clipPath(body);
     // Cream belly.
     c.drawOval(
         Rect.fromCenter(center: center + _rot(Offset(len * 0.15, h * 0.85), rot), width: len * 1.5, height: h * 1.1),
-        _fill(CatInk.cream));
+        _fill(k.belly));
     // Orange patch over the back and rump.
     final pc = center + _rot(Offset(-len * 0.3, -h * 0.62), rot);
-    c.drawPath(_ellipse(pc, len * 0.62, h * 0.72, rot - 0.25, n: 10, jitter: 0.12), _fill(CatInk.stripe));
+    c.drawPath(_ellipse(pc, len * 0.62, h * 0.72, rot - 0.25, n: 10, jitter: 0.12), _fill(k.bodyPatch));
     c.drawOval(Rect.fromCenter(center: pc + _rot(Offset(len * 0.12, -h * 0.3), rot), width: len * 0.3, height: h * 0.16),
         _fill(const Color(0xFFFFFFFF), 0.75));
     c.restore();
@@ -313,11 +324,11 @@ class _CatDraw {
     if (hn > 0.05) {
       final hc = center + _rot(Offset(-len * 0.42, h * 0.38), rot);
       final hp = _ellipse(hc, 9.5 * hn, 10.5 * hn, rot * 0.3, n: 10);
-      _shape(hp, CatInk.fur);
+      _shape(hp, k.body);
       c.save();
       c.clipPath(hp);
       c.drawOval(Rect.fromCenter(center: hc + Offset(-2.5 * hn, -3 * hn), width: 9 * hn, height: 7 * hn),
-          _fill(CatInk.stripe));
+          _fill(k.bodyPatch));
       c.restore();
     }
   }
@@ -356,7 +367,7 @@ class _CatDraw {
     c.drawPath(
         outline,
         Paint()
-          ..color = CatInk.ink
+          ..color = k.ink
           ..style = PaintingStyle.stroke
           ..strokeWidth = 5.4 + inkW * 2
           ..strokeCap = StrokeCap.round
@@ -368,7 +379,7 @@ class _CatDraw {
           pts[i],
           pts[i + 1],
           Paint()
-            ..color = band ? CatInk.stripe : CatInk.fur
+            ..color = band ? k.bodyPatch : k.body
             ..strokeWidth = w
             ..strokeCap = StrokeCap.round);
     }
@@ -383,21 +394,23 @@ class _CatDraw {
         _hp(14.2 * math.cos(2 * math.pi * i / 12) * (i > 2 && i < 10 ? 0.96 : 1.04),
             12.6 * math.sin(2 * math.pi * i / 12) * (i > 0 && i < 6 ? 1.02 : 0.98)),
     ]);
-    c.drawPath(head, _fill(CatInk.fur));
+    c.drawPath(head, _fill(k.fur));
     c.save();
     c.clipPath(head);
     // Muzzle + cheek.
-    c.drawOval(Rect.fromCenter(center: _hp(8.5, 5.5), width: 14, height: 9.5), _fill(CatInk.cream));
+    c.drawOval(Rect.fromCenter(center: _hp(8.5, 5.5), width: 14, height: 9.5), _fill(k.muzzle));
     // Orange patch over the top of the head, with a little shine.
     final patch = _blob([
       for (var i = 0; i < 10; i++)
         _hp(-2.5 + 11.5 * math.cos(2 * math.pi * i / 10), -9.5 + 7.5 * math.sin(2 * math.pi * i / 10)),
     ]);
-    c.drawPath(patch, _fill(CatInk.stripe));
+    c.drawPath(patch, _fill(k.patch));
     c.drawOval(Rect.fromCenter(center: _hp(1.5, -12.2), width: 4.2, height: 1.6), _fill(const Color(0xFFFFFFFF), 0.8));
+    _heroInsideHead();
     c.restore();
     c.drawPath(head, _ink);
     _ear(const Offset(5, -9.5), const Offset(6, -23), p[P.earFront]);
+    _heroOnHead();
 
     // Eyes.
     final open = p[P.eyeOpen].clamp(0.0, 1.0);
@@ -408,7 +421,7 @@ class _CatDraw {
       if (open < 0.22) {
         // Closed: happy upward arc (the logo's smile-eyes).
         c.drawArc(Rect.fromCenter(center: center + const Offset(0, 1.2), width: 5 * e.s, height: 3.8 * e.s),
-            math.pi + 0.25, math.pi - 0.5, false, _ink..strokeWidth = 1.6);
+            math.pi + 0.25, math.pi - 0.5, false, _ink..color = k.eye..strokeWidth = 1.6);
         continue;
       }
       final rx = (2.3 + 0.8 * wide) * e.s, ry = (2.9 + 0.9 * wide) * e.s * open;
@@ -416,8 +429,12 @@ class _CatDraw {
         c.drawOval(Rect.fromCenter(center: center, width: rx * 2 + 2.2, height: ry * 2 + 2.2),
             _fill(const Color(0xFFFFFFFF), wide));
       }
-      c.drawOval(Rect.fromCenter(center: center, width: rx * 2, height: ry * 2), _fill(CatInk.ink));
-      c.drawCircle(center + Offset(-rx * 0.3, -ry * 0.35), 0.8 * e.s, _fill(const Color(0xFFFFFFFF)));
+      final eye = Rect.fromCenter(center: center, width: rx * 2, height: ry * 2);
+      c.drawOval(eye, _fill(k.eye));
+      if (k.eyeOutline) c.drawOval(eye, _ink..strokeWidth = 1.1);
+      if (k.eye == k.ink) {
+        c.drawCircle(center + Offset(-rx * 0.3, -ry * 0.35), 0.8 * e.s, _fill(const Color(0xFFFFFFFF)));
+      }
       // Heavy lid for serious / sleepy looks.
       if (open < 0.85) {
         c.drawLine(center + Offset(-rx - 0.6, -ry + 0.2), center + Offset(rx + 0.6, -ry + 0.2), _ink..strokeWidth = 1.4);
@@ -426,7 +443,7 @@ class _CatDraw {
     // Brows: negative = flat & serious, positive = worried.
     final brow = p[P.brow];
     if (brow.abs() > 0.1) {
-      final bp = _ink..strokeWidth = 1.3;
+      final bp = _ink..color = k.eye..strokeWidth = 1.3;
       for (final e in [(x: 3.0, dir: -1.0), (x: 10.0, dir: 1.0)]) {
         final mid = _hp(e.x + look * 0.6, -6.3);
         final tilt = brow * 1.3 * e.dir;
@@ -441,7 +458,7 @@ class _CatDraw {
           ..lineTo(nose.dx + 1.6, nose.dy - 1.2)
           ..lineTo(nose.dx, nose.dy + 1.3)
           ..close(),
-        _fill(CatInk.nose));
+        _fill(k.nose));
     final mouth = p[P.mouth].clamp(0.0, 1.0);
     if (mouth > 0.15) {
       c.drawOval(Rect.fromCenter(center: _hp(11.5, 6.6 + mouth), width: 3 + 2 * mouth, height: 2 + 4.5 * mouth),
@@ -456,7 +473,7 @@ class _CatDraw {
           _ink..strokeWidth = 1.1);
     }
     final wp = Paint()
-      ..color = CatInk.ink.withValues(alpha: 0.45)
+      ..color = k.ink.withValues(alpha: 0.45)
       ..strokeWidth = 0.7
       ..strokeCap = StrokeCap.round;
     final w0 = _hp(14.5, 4.0);
@@ -464,7 +481,232 @@ class _CatDraw {
       c.drawLine(w0, w0 + _rot(Offset(9, a * 9), rot), wp);
     }
     // Blush.
-    c.drawOval(Rect.fromCenter(center: _hp(6.2, 3.6), width: 5.2, height: 3.0), _fill(CatInk.blush, 0.8));
+    c.drawOval(Rect.fromCenter(center: _hp(6.2, 3.6), width: 5.2, height: 3.0), _fill(k.blush, 0.8));
+    if (p[P.headphones] > 0.01) _headphones(p[P.headphones]);
+  }
+
+  /// Big round headphones: a band over the top, a cup on each side.
+  void _headphones(double a) {
+    const shell = Color(0xFF2B2B33), cushion = Color(0xFF6C63FF), rim = Color(0xFF8A84FF);
+    final band = Path()
+      ..moveTo(_hp(-11.5, -4).dx, _hp(-11.5, -4).dy)
+      ..quadraticBezierTo(_hp(-8, -17).dx, _hp(-8, -17).dy, _hp(0, -17.5).dx, _hp(0, -17.5).dy)
+      ..quadraticBezierTo(_hp(8, -17).dx, _hp(8, -17).dy, _hp(12, -4).dx, _hp(12, -4).dy);
+    c.drawPath(
+        band,
+        Paint()
+          ..color = k.ink.withValues(alpha: a)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3.6
+          ..strokeCap = StrokeCap.round);
+    c.drawPath(
+        band,
+        Paint()
+          ..color = shell.withValues(alpha: a)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..strokeCap = StrokeCap.round);
+    for (final (x, y, r) in [(-12.0, -1.5, 3.9), (12.5, -2.5, 4.2)]) {
+      final at = _hp(x, y);
+      c.drawCircle(at, r, _fill(shell, a));
+      c.drawCircle(at, r, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 1.3);
+      c.drawCircle(at, r * 0.62, _fill(cushion, a));
+      c.drawCircle(at + Offset(-r * 0.25, -r * 0.3), r * 0.18, _fill(rim, a));
+    }
+  }
+
+  // ---- study desk (education) --------------------------------------------------
+
+  void _deskBack(double a) {
+    // A little desk lamp on the far end of the table.
+    final lamp = p[P.lamp].clamp(0.0, 1.0) * a;
+    if (lamp > 0.02) {
+      final glow = Paint()..color = const Color(0xFFFFE9A8).withValues(alpha: 0.35 * lamp);
+      c.drawOval(Rect.fromCenter(center: const Offset(30, -24), width: 30, height: 16), glow);
+    }
+    final arm = Paint()
+      ..color = const Color(0xFF3F4A55).withValues(alpha: a)
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    c.drawLine(const Offset(44, -17), const Offset(44, -31), arm);
+    c.drawLine(const Offset(44, -31), const Offset(36, -34), arm);
+    final shade = Path()
+      ..moveTo(33, -36)
+      ..lineTo(40, -36)
+      ..lineTo(43, -29)
+      ..lineTo(30, -29)
+      ..close();
+    c.drawPath(shade, _fill(const Color(0xFF2F8F6B), a));
+    c.drawPath(shade, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 1.1);
+    if (lamp > 0.02) c.drawCircle(const Offset(36.5, -29), 1.6, _fill(const Color(0xFFFFF1B8), lamp));
+  }
+
+  void _deskFront(double a) {
+    final ink = _ink..color = k.ink.withValues(alpha: a);
+    // Low table.
+    final leg = Paint()
+      ..color = const Color(0xFF7A5536).withValues(alpha: a)
+      ..strokeWidth = 2.4;
+    c.drawLine(const Offset(16, -14), const Offset(16, 0), leg);
+    c.drawLine(const Offset(42, -14), const Offset(42, 0), leg);
+    final top = RRect.fromRectAndRadius(const Rect.fromLTWH(11, -18, 36, 4.2), const Radius.circular(1.2));
+    c.drawRRect(top, _fill(CatInk.wood, a));
+    c.drawRRect(top, ink);
+    // Open notebook seen a little from above, pages fanning.
+    final book = Path()
+      ..moveTo(17, -18)
+      ..lineTo(39, -18)
+      ..lineTo(41, -23)
+      ..lineTo(19, -23)
+      ..close();
+    c.drawPath(book, _fill(const Color(0xFFFFFDF5), a));
+    c.drawPath(book, ink..strokeWidth = 1.1);
+    c.drawLine(const Offset(29, -18), const Offset(30, -23), Paint()
+      ..color = k.ink.withValues(alpha: 0.5 * a)
+      ..strokeWidth = 0.8);
+    // Lines of homework that fill in as the cat writes.
+    final progress = p[P.write].clamp(0.0, 1.0);
+    final pen = Paint()
+      ..color = const Color(0xFF2F5D8A).withValues(alpha: a)
+      ..strokeWidth = 0.9
+      ..strokeCap = StrokeCap.round;
+    const rows = 3;
+    for (var i = 0; i < rows; i++) {
+      final rowP = ((progress * rows) - i).clamp(0.0, 1.0);
+      if (rowP <= 0) break;
+      final y = -22.2 + i * 1.3;
+      final x0 = 31.0 + i * 0.3, w = 8.0 * rowP;
+      c.drawLine(Offset(x0, y), Offset(x0 + w, y), pen);
+      if (i == 0) c.drawLine(Offset(20, y), Offset(27.5, y), pen); // the sum on the left page
+    }
+  }
+
+  /// Pencil held in the near front paw.
+  void _pencil(double a) {
+    final paw = _nearPaw;
+    c.save();
+    c.translate(paw.dx, paw.dy);
+    c.rotate(-0.95);
+    final body = const Rect.fromLTWH(-1.1, -8.5, 2.2, 9);
+    c.drawRect(body, _fill(const Color(0xFFF7C331), a));
+    c.drawRect(body, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 0.8);
+    c.drawPath(
+        Path()
+          ..moveTo(-1.1, 0.5)
+          ..lineTo(1.1, 0.5)
+          ..lineTo(0, 3)
+          ..close(),
+        _fill(const Color(0xFFE8C9A0), a));
+    c.drawCircle(const Offset(0, 2.6), 0.5, _fill(k.ink, a));
+    c.drawRect(const Rect.fromLTWH(-1.1, -8.5, 2.2, 1.6), _fill(const Color(0xFFF28A9A), a));
+    c.restore();
+    // Paw wraps the pencil.
+    c.drawOval(Rect.fromCenter(center: paw, width: 5.8, height: 4.0), _fill(k.paw, a));
+    c.drawOval(Rect.fromCenter(center: paw, width: 5.8, height: 4.0), _ink..color = k.ink.withValues(alpha: a));
+  }
+
+  // ---- hangout bench --------------------------------------------------------------
+
+  void _benchBack(double a) {
+    final ink = _ink..color = k.ink.withValues(alpha: a);
+    final leg = Paint()
+      ..color = const Color(0xFF4B5763).withValues(alpha: a)
+      ..strokeWidth = 2.6;
+    c.drawLine(const Offset(-26, -9), const Offset(-28, 0), leg);
+    c.drawLine(const Offset(26, -9), const Offset(28, 0), leg);
+    final seat = RRect.fromRectAndRadius(const Rect.fromLTWH(-34, -12.5, 68, 3.8), const Radius.circular(1.4));
+    c.drawRRect(seat, _fill(const Color(0xFFB07A4A), a));
+    c.drawRRect(seat, ink);
+    final slat = RRect.fromRectAndRadius(const Rect.fromLTWH(-34, -8.2, 68, 2.2), const Radius.circular(1));
+    c.drawRRect(slat, _fill(const Color(0xFF9A6A43), a));
+    c.drawRRect(slat, ink..strokeWidth = 1.0);
+    // A little speaker on the bench, pulsing with the beat.
+    final beat = p[P.beat].clamp(0.0, 1.0);
+    final box = RRect.fromRectAndRadius(const Rect.fromLTWH(-33, -22.5, 9, 10), const Radius.circular(1.6));
+    c.drawRRect(box, _fill(const Color(0xFF2B2B33), a));
+    c.drawRRect(box, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 1.2);
+    c.drawCircle(const Offset(-28.5, -18.5), 2.6 + 0.4 * beat, _fill(const Color(0xFF6C63FF), a));
+    c.drawCircle(const Offset(-28.5, -18.5), 1.0, _fill(const Color(0xFF15151A), a));
+    if (p[P.notes] > 0.02) {
+      final ring = Paint()
+        ..color = const Color(0xFF6C63FF).withValues(alpha: 0.5 * beat * a)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+      c.drawCircle(const Offset(-28.5, -18.5), 4.5 + 2.5 * (1 - beat), ring);
+    }
+  }
+
+  /// Costume details that sit inside the head outline (clipped to it).
+  void _heroInsideHead() {
+    switch (k.look) {
+      case HeroLook.spider:
+        final web = Paint()
+          ..color = const Color(0xFF8E1424)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.7
+          ..strokeCap = StrokeCap.round;
+        final hub = _hp(7, 1);
+        for (var i = 0; i < 10; i++) {
+          final a = 2 * math.pi * i / 10 + p[P.headRot];
+          c.drawLine(hub, hub + Offset(math.cos(a), math.sin(a)) * 32, web);
+        }
+        for (final r in [6.0, 11.0, 16.5, 23.0]) {
+          c.drawCircle(hub, r, web);
+        }
+      case HeroLook.iron:
+        // Gold faceplate.
+        final plate = _blob([
+          for (var i = 0; i < 10; i++)
+            _hp(7.5 + 9.2 * math.cos(2 * math.pi * i / 10), 1.6 + 9.6 * math.sin(2 * math.pi * i / 10)),
+        ], jitter: 0.15);
+        c.drawPath(plate, _fill(k.muzzle));
+        c.drawPath(plate, _ink..strokeWidth = 1.0);
+      case HeroLook.superman:
+        // The little curl of hair on the forehead.
+        c.drawArc(Rect.fromCircle(center: _hp(7.2, -4.6), radius: 1.7), 0.4, math.pi * 1.5, false,
+            _ink..color = k.patch..strokeWidth = 1.5);
+      case HeroLook.wonder:
+        // Gold tiara with a red star.
+        final t = [
+          _hp(-15, -8.2), _hp(15, -8.8), _hp(15, -5.8), _hp(8.6, -5.5),
+          _hp(6.6, -3.4), _hp(4.6, -5.4), _hp(-15, -5.0),
+        ];
+        final tiara = Path()..moveTo(t[0].dx, t[0].dy);
+        for (final q in t.skip(1)) {
+          tiara.lineTo(q.dx, q.dy);
+        }
+        tiara.close();
+        c.drawPath(tiara, _fill(const Color(0xFFF2B632)));
+        c.drawPath(tiara, _ink..strokeWidth = 1.0);
+        final sc = _hp(6.6, -6.2);
+        final star = Path();
+        for (var i = 0; i < 10; i++) {
+          final a = -math.pi / 2 + math.pi * i / 5 + p[P.headRot];
+          final q = sc + Offset(math.cos(a), math.sin(a)) * (i.isEven ? 1.9 : 0.85);
+          if (i == 0) {
+            star.moveTo(q.dx, q.dy);
+          } else {
+            star.lineTo(q.dx, q.dy);
+          }
+        }
+        star.close();
+        c.drawPath(star, _fill(const Color(0xFFD7263D)));
+      default:
+        break;
+    }
+  }
+
+  /// Costume details drawn over the finished head.
+  void _heroOnHead() {
+    if (k.look != HeroLook.catwoman) return;
+    // Goggles pushed up on the forehead.
+    final l = _hp(2.6, -8.6), r = _hp(9.4, -9.0);
+    c.drawLine(_hp(-9, -8.4), _hp(13.5, -8.2), _ink..strokeWidth = 1.6);
+    for (final (at, rad) in [(l, 2.6), (r, 3.0)]) {
+      c.drawCircle(at, rad, _fill(const Color(0xFFF7A63A)));
+      c.drawCircle(at, rad, _ink..strokeWidth = 1.1);
+      c.drawCircle(at + Offset(-rad * 0.35, -rad * 0.35), 0.7, _fill(const Color(0xFFFFFFFF), 0.8));
+    }
   }
 
   void _ear(Offset base, Offset tip, double back, {bool far = false}) {
@@ -494,7 +736,7 @@ class _CatDraw {
       ..quadraticBezierTo(
           (pts[1].dx + pts[2].dx) / 2 + perp.dx, (pts[1].dy + pts[2].dy) / 2 + perp.dy, pts[2].dx, pts[2].dy)
       ..close();
-    c.drawPath(path, _fill(far ? CatInk.stripe : CatInk.fur));
+    c.drawPath(path, _fill(far ? k.patch : k.fur));
     c.drawPath(path, _ink);
     // Inner ear.
     final inner = Path()
@@ -503,7 +745,7 @@ class _CatDraw {
           Offset.lerp(pts[1], Offset.lerp(pts[0], pts[2], 0.5)!, 0.3)!.dy)
       ..lineTo(Offset.lerp(pts[0], pts[2], 0.72)!.dx, Offset.lerp(pts[0], pts[2], 0.72)!.dy)
       ..close();
-    c.drawPath(inner, _fill(CatInk.earPink, far ? 0.6 : 1));
+    c.drawPath(inner, _fill(k.earPink, far ? 0.6 : 1));
   }
 
   // ---- scarf -------------------------------------------------------------------
@@ -518,21 +760,21 @@ class _CatDraw {
     final ph = p[P.scarfPhase];
     // Trailing ends: hanging down → streaming straight back.
     final ends = a * (1 - p[P.blanket].clamp(0.0, 1.0));
-    for (var k = 0; k < (ends > 0.02 ? 2 : 0); k++) {
+    for (var n = 0; n < (ends > 0.02 ? 2 : 0); n++) {
       final pts = <Offset>[];
       // Angle of the ribbon: pi/2 hangs down, pi streams straight back.
-      final baseAng = (math.pi / 2 + 0.3) * (1 - flow) + (math.pi * 0.97) * flow - k * 0.2;
-      final length = 10.0 + 10 * flow - k * 2.5;
+      final baseAng = (math.pi / 2 + 0.3) * (1 - flow) + (math.pi * 0.97) * flow - n * 0.2;
+      final length = 10.0 + 10 * flow - n * 2.5;
       pts.add(neck + const Offset(-3, 2.5));
       for (var i = 1; i <= 6; i++) {
-        final wave = math.sin(ph + i * 0.9 + k) * (0.12 + 0.3 * flow) * i / 6;
+        final wave = math.sin(ph + i * 0.9 + n) * (0.12 + 0.3 * flow) * i / 6;
         pts.add(pts.last + _dirFromAngle(baseAng + wave) * (length / 6));
       }
-      _limb(pts, 4.2 - k * 0.6, k == 0 ? CatInk.scarf : CatInk.scarfDark, alpha: ends);
+      _limb(pts, 4.2 - n * 0.6, n == 0 ? k.scarf : k.scarfDark, alpha: ends);
       // Fringe at the end.
       final end = pts.last;
       final fp = Paint()
-        ..color = CatInk.scarfDark.withValues(alpha: a)
+        ..color = k.scarfDark.withValues(alpha: a)
         ..strokeWidth = 0.9;
       for (var i = -1; i <= 1; i++) {
         c.drawLine(end, end + _dirFromAngle(baseAng + i * 0.25) * 2.6, fp);
@@ -546,13 +788,13 @@ class _CatDraw {
     final neck = _neck;
     // The band around the neck.
     final band = _ellipse(neck, 8.6, 3.9, -0.35 + p[P.headRot] * 0.5 + p[P.bodyRot] * 0.4, n: 10, jitter: 0.2);
-    _shape(band, CatInk.scarf, a);
+    _shape(band, k.scarf, a);
     c.drawLine(neck + const Offset(-5, 0.8), neck + const Offset(5, -1.6),
         Paint()
-          ..color = CatInk.scarfDark.withValues(alpha: a)
+          ..color = k.scarfDark.withValues(alpha: a)
           ..strokeWidth = 1.1);
     // Knot.
-    _shape(_ellipse(neck + const Offset(-4.5, 2.2), 2.6, 2.2, 0, n: 8, jitter: 0.15), CatInk.scarfDark, a);
+    _shape(_ellipse(neck + const Offset(-4.5, 2.2), 2.6, 2.2, 0, n: 8, jitter: 0.15), k.scarfDark, a);
   }
 
   /// "Down" = pi/2, "back" (towards -x) = pi.
@@ -569,10 +811,10 @@ class _CatDraw {
       ..close();
     c.save();
     c.translate(0, -8 * (1 - a));
-    _shape(drape, CatInk.scarf, a);
+    _shape(drape, k.scarf, a);
     c.drawLine(Offset(h.dx - 6, h.dy - 7), Offset(h.dx + 14, h.dy - 3),
         Paint()
-          ..color = CatInk.scarfDark.withValues(alpha: a)
+          ..color = k.scarfDark.withValues(alpha: a)
           ..strokeWidth = 1.2);
     c.restore();
   }
@@ -599,11 +841,11 @@ class _CatDraw {
       ..lineTo(-2.5, 4.2)
       ..close();
     c.drawPath(teaLevel, _fill(CatInk.tea, a));
-    c.drawPath(glass, _ink..color = CatInk.ink.withValues(alpha: a)..strokeWidth = 1.1);
+    c.drawPath(glass, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 1.1);
     c.restore();
     // Paw wraps the glass.
-    c.drawOval(Rect.fromCenter(center: _nearPaw, width: 6.4, height: 4.4), _fill(CatInk.cream, a));
-    c.drawOval(Rect.fromCenter(center: _nearPaw, width: 6.4, height: 4.4), _ink..color = CatInk.ink.withValues(alpha: a));
+    c.drawOval(Rect.fromCenter(center: _nearPaw, width: 6.4, height: 4.4), _fill(k.paw, a));
+    c.drawOval(Rect.fromCenter(center: _nearPaw, width: 6.4, height: 4.4), _ink..color = k.ink.withValues(alpha: a));
     // Steam.
     final st = p[P.steam].clamp(0.0, 1.0) * a;
     if (st > 0.02) {
@@ -659,17 +901,17 @@ class _CatDraw {
       c.drawPath(
           route,
           Paint()
-            ..color = CatInk.scarf.withValues(alpha: vis * 0.9)
+            ..color = k.scarf.withValues(alpha: vis * 0.9)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.1);
-      c.drawCircle(Offset(rect.right - 4, rect.top + 4), 1.6, _fill(CatInk.scarf, vis));
+      c.drawCircle(Offset(rect.right - 4, rect.top + 4), 1.6, _fill(k.scarf, vis));
     }
-    c.drawRect(rect, _ink..color = CatInk.ink.withValues(alpha: vis)..strokeWidth = 1.2);
+    c.drawRect(rect, _ink..color = k.ink.withValues(alpha: vis)..strokeWidth = 1.2);
     c.restore();
     // Paws holding the edges.
     for (final paw in [_nearPaw, _farPaw]) {
-      c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _fill(CatInk.cream, vis));
-      c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _ink..color = CatInk.ink.withValues(alpha: vis));
+      c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _fill(k.paw, vis));
+      c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _ink..color = k.ink.withValues(alpha: vis));
     }
   }
 
@@ -680,7 +922,7 @@ class _CatDraw {
 
   void _glasses(Offset l, Offset r, double a, double rad) {
     final gp = Paint()
-      ..color = CatInk.ink.withValues(alpha: a)
+      ..color = k.ink.withValues(alpha: a)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6;
     c.drawCircle(l, rad * 0.85, _fill(const Color(0x66D7EEF7), a));
@@ -729,7 +971,7 @@ class _CatDraw {
     // Backrest with the scarf draped over it.
     final back = RRect.fromRectAndRadius(const Rect.fromLTWH(-24, -47, 7, 29), const Radius.circular(3));
     c.drawRRect(back, _fill(const Color(0xFF3F4A55), a));
-    c.drawRRect(back, _ink..color = CatInk.ink.withValues(alpha: a));
+    c.drawRRect(back, _ink..color = k.ink.withValues(alpha: a));
     final drape = (1 - p[P.scarfNeck]).clamp(0.0, 1.0) * a;
     if (drape > 0.02) {
       final sc = Path()
@@ -742,17 +984,17 @@ class _CatDraw {
         ..lineTo(-26, -24)
         ..quadraticBezierTo(-27.5, -21, -29, -25)
         ..close();
-      _shape(sc, CatInk.scarf, drape);
+      _shape(sc, k.scarf, drape);
     }
     // Seat.
     final seat = RRect.fromRectAndRadius(const Rect.fromLTWH(-21, -21.5, 28, 5.5), const Radius.circular(2.5));
     c.drawRRect(seat, _fill(const Color(0xFF4B5763), a));
-    c.drawRRect(seat, _ink..color = CatInk.ink.withValues(alpha: a));
+    c.drawRRect(seat, _ink..color = k.ink.withValues(alpha: a));
     c.restore();
   }
 
   void _officeFront(double a) {
-    final ink = _ink..color = CatInk.ink.withValues(alpha: a);
+    final ink = _ink..color = k.ink.withValues(alpha: a);
     // Desk.
     final top = Rect.fromLTWH(17, -37, 52, 4.2);
     c.drawRect(top, _fill(CatInk.wood, a));
@@ -834,7 +1076,7 @@ class _CatDraw {
       c.drawRect(Rect.fromLTWH(x, -39, 2.2, 1.6), _fill(const Color(0xFFFFFFFF), kf * a));
     }
     final enter = Rect.fromLTWH(35.5, -39.6, 4.2, 2.2);
-    c.drawRect(enter, _fill(Color.lerp(const Color(0xFF9AA3AB), CatInk.scarf, p[P.impact].clamp(0.0, 1.0))!, a));
+    c.drawRect(enter, _fill(Color.lerp(const Color(0xFF9AA3AB), k.scarf, p[P.impact].clamp(0.0, 1.0))!, a));
   }
 
   void _fishCursor(Offset at, double a) {
@@ -851,7 +1093,7 @@ class _CatDraw {
           ..lineTo(at.dx - 6.4, at.dy + 2.4)
           ..close(),
         _fill(const Color(0xFFFFA62B), a));
-    c.drawCircle(at + const Offset(2.2, -0.6), 0.6, _fill(CatInk.ink, a));
+    c.drawCircle(at + const Offset(2.2, -0.6), 0.6, _fill(k.ink, a));
   }
 
   // ---- home -----------------------------------------------------------------------
@@ -899,7 +1141,7 @@ class _CatDraw {
     final fc = Offset((left + right) / 2, -11 - rise * 0.5);
     for (var i = 0; i < 5; i++) {
       final ang = 2 * math.pi * i / 5;
-      c.drawCircle(fc + Offset(math.cos(ang), math.sin(ang)) * 2.2, 1.3, _fill(CatInk.scarf));
+      c.drawCircle(fc + Offset(math.cos(ang), math.sin(ang)) * 2.2, 1.3, _fill(k.scarf));
     }
     c.drawCircle(fc, 1.1, _fill(const Color(0xFFFFD166)));
     // Red border along the top edge.
@@ -909,7 +1151,7 @@ class _CatDraw {
           ..quadraticBezierTo(left + 6, -19 - rise - 4 * kick, -14, -20 - rise - 5 * kick)
           ..quadraticBezierTo(right - 12, -23 - rise, right, -17 - rise * 0.5),
         Paint()
-          ..color = CatInk.scarf
+          ..color = k.scarf
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.6);
   }
@@ -937,10 +1179,10 @@ class _CatDraw {
     Offset world(Offset local) => Offset((local.dx + p[P.rootX]) * f, local.dy + p[P.rootY]);
     final headTop = world(_head + const Offset(2, -27));
 
-    if (p[P.exclaim] > 0.02) _text('!', headTop + const Offset(0, -2), 15, CatInk.scarf, p[P.exclaim]);
+    if (p[P.exclaim] > 0.02) _text('!', headTop + const Offset(0, -2), 15, k.scarf, p[P.exclaim]);
     if (p[P.question] > 0.02) {
       final bob = math.sin(p[P.time] * 3 + p[P.headRot] * 4) * 1.5;
-      _text('?', headTop + Offset(6 * f, -2 + bob), 15, CatInk.ink, p[P.question]);
+      _text('?', headTop + Offset(6 * f, -2 + bob), 15, k.ink, p[P.question]);
     }
     if (p[P.sweat] > 0.02) {
       final at = world(_head + const Offset(-12, -10));
@@ -951,7 +1193,7 @@ class _CatDraw {
         ..quadraticBezierTo(at.dx - 3, at.dy + 1, at.dx, at.dy - 4)
         ..close();
       c.drawPath(drop, _fill(const Color(0xFF7CC4E8), a));
-      c.drawPath(drop, _ink..color = CatInk.ink.withValues(alpha: a)..strokeWidth = 0.9);
+      c.drawPath(drop, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 0.9);
     }
     final impact = p[P.impact].clamp(0.0, 1.0);
     if (impact > 0.02) {
@@ -959,7 +1201,18 @@ class _CatDraw {
       final at = office ? Offset(37.5 * f, -42) : world(_head + const Offset(14, -6));
       _burst(at, 5 + 6 * impact, impact);
       if (office && impact > 0.3) {
-        _text('ENTER', Offset(at.dx + 2 * f, at.dy - 13), 7.5, CatInk.scarf, impact, bold: true, box: true);
+        _text('ENTER', Offset(at.dx + 2 * f, at.dy - 13), 7.5, k.scarf, impact, bold: true, box: true);
+      }
+    }
+    if (p[P.notes] > 0.02) {
+      final a = p[P.notes].clamp(0.0, 1.5);
+      final t = p[P.time];
+      const cols = [Color(0xFF6C63FF), Color(0xFFD7263D), Color(0xFF2FBF8F)];
+      for (var i = 0; i < 3; i++) {
+        final u = ((t * 0.5 + i / 3) % 1);
+        final sway = math.sin(u * math.pi * 2 + i) * 3;
+        final at = world(_head + Offset(9 + i * 3 + sway, -16 - u * 22));
+        _note(at, 0.75 + u * 0.5, cols[i], a.clamp(0.0, 1.0) * math.sin(math.pi * u), i.isOdd);
       }
     }
     if (p[P.zzz] > 0.02) {
@@ -989,10 +1242,40 @@ class _CatDraw {
           ..lineTo(at.dx - 2.2, at.dy + 3.5)
           ..close();
         c.drawPath(g, _fill(CatInk.tea, a));
-        c.drawPath(g, _ink..color = CatInk.ink.withValues(alpha: a)..strokeWidth = 0.9);
-        _text('♥', at + const Offset(6.5, -3), 6, CatInk.scarf, a);
+        c.drawPath(g, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 0.9);
+        _text('♥', at + const Offset(6.5, -3), 6, k.scarf, a);
       }
     }
+  }
+
+  /// A drawn music note (no font needed): head, stem and a flag or beam.
+  void _note(Offset at, double sc, Color col, double a, bool beamed) {
+    if (a <= 0.02) return;
+    c.save();
+    c.translate(at.dx, at.dy);
+    c.scale(sc);
+    final fill = _fill(col, a);
+    final line = Paint()
+      ..color = col.withValues(alpha: a)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round;
+    c.drawOval(Rect.fromCenter(center: const Offset(0, 0), width: 4.2, height: 3.0), fill);
+    c.drawLine(const Offset(1.9, -0.4), const Offset(1.9, -8), line);
+    if (beamed) {
+      c.drawOval(Rect.fromCenter(center: const Offset(6, -1), width: 4.2, height: 3.0), fill);
+      c.drawLine(const Offset(7.9, -1.4), const Offset(7.9, -9), line);
+      c.drawLine(const Offset(1.9, -8), const Offset(7.9, -9), line..strokeWidth = 2.0);
+    } else {
+      c.drawPath(
+          Path()
+            ..moveTo(1.9, -8)
+            ..quadraticBezierTo(5.5, -6.5, 4.5, -2.5)
+            ..quadraticBezierTo(4.6, -5.2, 1.9, -5.6)
+            ..close(),
+          fill);
+    }
+    c.restore();
   }
 
   void _burst(Offset at, double r, double a) {
@@ -1009,7 +1292,7 @@ class _CatDraw {
     }
     path.close();
     c.drawPath(path, _fill(const Color(0xFFFFE066), a));
-    c.drawPath(path, _ink..color = CatInk.ink.withValues(alpha: a)..strokeWidth = 1.0);
+    c.drawPath(path, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 1.0);
   }
 
   void _text(String s, Offset at, double size, Color col, double a, {bool bold = true, bool box = false}) {
@@ -1030,17 +1313,17 @@ class _CatDraw {
       final r = RRect.fromRectAndRadius(
           Rect.fromLTWH(o.dx - 2, o.dy - 1.5, tp.width + 4, tp.height + 3), const Radius.circular(2));
       c.drawRRect(r, _fill(const Color(0xFFFFFFFF), a));
-      c.drawRRect(r, _ink..color = CatInk.ink.withValues(alpha: a)..strokeWidth = 1.0);
+      c.drawRRect(r, _ink..color = k.ink.withValues(alpha: a)..strokeWidth = 1.0);
     }
     tp.paint(c, o);
   }
 }
 
 /// Renders a single pose to an image (used by the comic and tests).
-Future<ui.Image> renderPose(Pose pose, double width) async {
+Future<ui.Image> renderPose(Pose pose, double width, {CatSkin? skin}) async {
   final recorder = ui.PictureRecorder();
   final h = width * CatCanvas.height / CatCanvas.width;
   final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width, h));
-  CatPainter(pose).paint(canvas, Size(width, h));
+  CatPainter(pose, skin: skin).paint(canvas, Size(width, h));
   return recorder.endRecording().toImage(width.ceil(), h.ceil());
 }

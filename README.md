@@ -30,10 +30,6 @@ older phones.
 
 ## Getting started
 
-**Try it without going outside.** Tap **Try the demo (no location needed)**. The cat goes on a
-pretend outing: a walk, a cha break, the office and home. You can tap the cat, change the speed
-and end the trip to see its comic.
-
 **Go for a real walk.**
 
 1. Tap **Start roaming**.
@@ -42,15 +38,22 @@ and end the trip to see its comic.
    notification stays while the trip runs, even if you close the app or lock the screen.
 4. When you're done, open GoliCat and tap **End trip**.
 
-**Set your office and home.** Long-press the map where your office or home is and choose
-**Set as my office** or **Set as my home**. You can also use **Use my current location** and
-adjust both later in **Places & settings**. When you've been at your office for about two
-minutes, the cat sits down at its desk. At home, it goes to sleep.
+**Set your places.** Long-press the map where a place is and choose what it is: **office**,
+**home**, **school / university** or **hangout spot**. You can also use **Use my current
+location** and adjust any of them later in **Places & settings**. After about two minutes at a
+place the cat settles in: at the office it sits down at its desk and types; at school or
+university it puts on its glasses and does homework; at your hangout spot it puts on
+headphones and vibes to the music; at home it goes to sleep.
 
 **Get your trip comic.** Every trip ends with a three-panel comic of the best moments. You can
 save it to your gallery or share it. It never shows a map, route or address.
 
 **Play with the cat.** Tap it. It does something different in each mode.
+
+**Choose your cat.** Tap the face button next to **Start roaming** (or **Choose your cat** in
+**Places & settings**). There are 17 cats: Goli and ten more colours, each with its own name, plus
+six hero cats. Your choice is saved on your phone and used everywhere: on the map, in your comics and
+in live-share links, so friends see the same cat you do.
 
 ## Share your live location
 

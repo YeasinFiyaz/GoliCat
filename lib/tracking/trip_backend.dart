@@ -9,7 +9,7 @@ import 'trip_runner.dart';
 /// whether the trip lives in the Android foreground service or in-process.
 ///
 /// Commands: `start` {resume}, `stop`, `startShare` {minutes?}, `stopShare`,
-/// `place` {kind}, `status` (asks for a fresh status event).
+/// `place` {kind}, `avatar` (re-read the chosen cat), `status` (asks for a fresh status event).
 abstract class TripBackend {
   Stream<Map<String, dynamic>> get status;
   Future<bool> isRunning();
@@ -45,6 +45,7 @@ class LocalBackend implements TripBackend {
       case 'stop':
         await runner.stop();
       case 'startShare':
+        await runner.store.reload(); // pick up the avatar chosen in the app
         final m = args?['minutes'];
         await runner.startShare(duration: m == null ? null : Duration(minutes: (m as num).toInt()));
       case 'stopShare':
@@ -52,6 +53,8 @@ class LocalBackend implements TripBackend {
       case 'place':
         await runner.store.reload();
         runner.placeChanged(PlaceKind.values.firstWhere((k) => k.name == args?['kind']));
+      case 'avatar':
+        await runner.store.reload(); // the share sends the avatar id with every push
       case 'status':
         runner.emit();
     }

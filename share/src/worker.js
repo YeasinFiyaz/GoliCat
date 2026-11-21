@@ -6,7 +6,7 @@
 const ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const MAX_SHARE_MS = 24 * 3600 * 1000;
 const MIN_WRITE_GAP_MS = 1500;
-const MODES = new Set(['starting', 'idle', 'waiting', 'walking', 'fast', 'lost', 'atWork', 'atHome']);
+const MODES = new Set(['starting', 'idle', 'waiting', 'walking', 'fast', 'lost', 'atWork', 'atHome', 'studying', 'hangingOut']);
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -143,6 +143,8 @@ function cleanState(b) {
     speed: num(b.speed, 0, 200) ?? 0,
     moving: b.moving === true,
     mode: MODES.has(b.mode) ? b.mode : 'idle',
+    // Avatar id (a short lowercase word); anything else is dropped.
+    ...(typeof b.skin === 'string' && /^[a-z]{1,24}$/.test(b.skin) ? { skin: b.skin } : {}),
     ts: Date.now(),
   };
 }
@@ -196,8 +198,9 @@ export class Share {
 
     const wantUntil = typeof body.until === 'number' ? body.until : now + 3600 * 1000;
     const until = Math.min(Math.max(wantUntil, now + 60 * 1000), now + MAX_SHARE_MS);
+    // Position pushes carry no `until`: they must not extend the share the user chose.
     const newMeta = meta
-      ? { ...meta, until: Math.min(until, meta.created + MAX_SHARE_MS), lastWrite: now }
+      ? { ...meta, lastWrite: now, ...(typeof body.until === 'number' ? { until: Math.min(until, meta.created + MAX_SHARE_MS) } : {}) }
       : { hash, until, created: now, lastWrite: now, ended: false };
     await st.put('meta', newMeta);
     const state = body.lat === undefined ? null : cleanState(body);

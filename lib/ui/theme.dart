@@ -16,6 +16,12 @@ class GoliTheme {
       colorScheme: cs,
       scaffoldBackgroundColor: paper,
       visualDensity: VisualDensity.standard,
+      // Screens fade through each other instead of sliding in from the side.
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+      }),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(color: red, strokeCap: StrokeCap.round),
+      splashFactory: InkSparkle.splashFactory,
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),

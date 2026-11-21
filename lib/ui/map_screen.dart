@@ -7,19 +7,30 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../cat/cat_layer.dart';
+import '../cat/cat_skin.dart';
 import '../core/geo.dart';
 import '../places/place_store.dart';
+import '../share/share_controller.dart';
 import '../tracking/activity_engine.dart';
 import '../tracking/location_service.dart';
 import '../tracking/place_monitor.dart';
 import '../tracking/trip_recorder.dart';
 import '../tracking/trip_runner.dart';
+import 'avatar_screen.dart';
+import 'busy.dart';
 import 'comic_screen.dart';
-import 'demo_screen.dart';
 import 'theme.dart';
 import 'trip_controller.dart';
 
 LatLng _ll(GeoPoint p) => LatLng(p.lat, p.lng);
+
+/// Pin look for each kind of place.
+({IconData icon, IconData outlined, Color color}) _pinOf(PlaceKind k) => switch (k) {
+      PlaceKind.office => (icon: Icons.business_center, outlined: Icons.business_center_outlined, color: GoliTheme.red),
+      PlaceKind.home => (icon: Icons.bed, outlined: Icons.bed_outlined, color: const Color(0xFF2F5D8A)),
+      PlaceKind.education => (icon: Icons.school, outlined: Icons.school_outlined, color: const Color(0xFF2F8F6B)),
+      PlaceKind.hangout => (icon: Icons.headphones, outlined: Icons.headphones_outlined, color: const Color(0xFF6C63FF)),
+    };
 GeoPoint _gp(LatLng p) => GeoPoint(p.latitude, p.longitude);
 
 /// Projects through flutter_map's live camera, so the cat moves exactly with the map.
@@ -47,7 +58,7 @@ class _PlaceDraft {
   final bool existing;
 }
 
-class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMixin {
+class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TripController trip = TripController(widget.store);
   final projector = OsmProjector();
   final _map = MapController();
@@ -55,8 +66,6 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   bool _follow = true;
   _PlaceDraft? _draft;
   GeoPoint? _lastCameraTarget;
-  double _panelHeight = 150;
-  final _panelKey = GlobalKey();
 
   // Smooth camera glide (flutter_map moves instantly by itself).
   late final AnimationController _glide =
@@ -69,6 +78,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     trip.addListener(_onTrip);
     _glide.addListener(() {
       if (_glideFrom == null || _glideTo == null || !_mapReady) return;
@@ -81,7 +91,13 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) trip.recheckProblem();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     trip.removeListener(_onTrip);
     trip.dispose();
     _glide.dispose();
@@ -114,6 +130,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
           TextButton(
             onPressed: () {
               widget.store.saveActiveTrip(null);
+              _stopLeftoverShare();
               Navigator.pop(ctx);
             },
             child: const Text('Discard'),
@@ -121,6 +138,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
           FilledButton(
             onPressed: () {
               widget.store.saveActiveTrip(null);
+              _stopLeftoverShare();
               Navigator.pop(ctx);
               log.endedAt = log.startedAt.add(
                   log.moments.isEmpty ? Duration.zero : log.moments.last.offset + const Duration(minutes: 1));
@@ -142,12 +160,14 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
         _glideTo_(p, zoom: first ? 17.5 : null, ms: first ? 900 : 1000);
       }
     }
-    if (mounted) setState(() {});
+    // No setState here: the parts that show trip state listen to [trip]
+    // themselves, so the map and its tiles are not rebuilt twice a second.
   }
 
   // ---- actions -------------------------------------------------------------
 
   Future<void> _startRoaming() async {
+    if (trip.state == TripState.starting) return;
     if (!widget.store.explainedLocation) {
       final ok = await showModalBottomSheet<bool>(
         context: context,
@@ -201,29 +221,37 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       setState(() => _draft!.center = _gp(at));
       return;
     }
-    final kind = await showModalBottomSheet<PlaceKind>(
+    final kind = await _choosePlaceKind(settingHere: true);
+    if (kind == null) return;
+    _editPlace(kind, at: _gp(at));
+  }
+
+  Future<PlaceKind?> _choosePlaceKind({bool settingHere = false}) {
+    return showModalBottomSheet<PlaceKind>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 8),
-          ListTile(
-            leading: const Icon(Icons.business_center_outlined),
-            title: const Text('Set as my office'),
-            subtitle: const Text('GoliCat clocks in here'),
-            onTap: () => Navigator.pop(ctx, PlaceKind.office),
-          ),
-          ListTile(
-            leading: const Icon(Icons.bed_outlined),
-            title: const Text('Set as my home'),
-            subtitle: const Text('GoliCat naps under its kantha here'),
-            onTap: () => Navigator.pop(ctx, PlaceKind.home),
-          ),
+          for (final k in PlaceKind.values)
+            ListTile(
+              leading: Icon(_pinOf(k).outlined, color: _pinOf(k).color),
+              title: Text(settingHere ? 'Set as ${k.title.substring(3).toLowerCase()}' : k.title),
+              subtitle: Text(settingHere
+                  ? k.blurb
+                  : widget.store.place(k) == null
+                      ? '${k.blurb} · not set'
+                      : '${k.blurb} · set'),
+              onTap: () => Navigator.pop(ctx, k),
+            ),
           const SizedBox(height: 8),
         ]),
       ),
     );
-    if (kind == null) return;
-    _editPlace(kind, at: _gp(at));
+  }
+
+  Future<void> _pickPlaceToEdit() async {
+    final kind = await _choosePlaceKind();
+    if (kind != null && mounted) _editPlace(kind);
   }
 
   void _onTap(TapPosition _, LatLng at) {
@@ -239,18 +267,25 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     }
     setState(() {
       _follow = false;
-      _draft = _PlaceDraft(kind, center, existing?.radiusM ?? (kind == PlaceKind.office ? AppStore.defaultRadius : 60),
-          existing: existing != null);
+      _draft = _PlaceDraft(kind, center, existing?.radiusM ?? kind.defaultRadius, existing: existing != null);
     });
     _glideTo_(center, zoom: 16.5);
   }
 
+  bool _savingPlace = false;
+
   Future<void> _saveDraft() async {
+    if (_savingPlace) return;
     final d = _draft!;
+    setState(() => _savingPlace = true);
     await widget.store.setPlace(d.kind, Place(center: d.center, radiusM: d.radius));
     trip.placeChanged(d.kind);
-    setState(() => _draft = null);
-    _snack(d.kind == PlaceKind.office ? 'Office saved on this phone.' : 'Home saved on this phone.');
+    if (!mounted) return;
+    setState(() {
+      _savingPlace = false;
+      _draft = null;
+    });
+    _snack('${d.kind.title.substring(3)} saved on this phone.');
   }
 
   Future<void> _removeDraft() async {
@@ -281,6 +316,13 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     );
   }
 
+  /// A live share that outlived its trip (the phone killed the service) must
+  /// stop now, not keep showing the last position until it expires.
+  void _stopLeftoverShare() {
+    final leftover = ShareController(widget.store);
+    if (leftover.active) leftover.stop().whenComplete(leftover.dispose);
+  }
+
   void _openSettings() {
     showModalBottomSheet<void>(
       context: context,
@@ -288,16 +330,22 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       builder: (ctx) => _SettingsSheet(
         store: widget.store,
         trip: trip,
-        onEditHome: () {
+        onEditPlace: (k) {
           Navigator.pop(ctx);
-          _editPlace(PlaceKind.home);
+          _editPlace(k);
         },
-        onDemo: () {
+        onAvatar: () {
           Navigator.pop(ctx);
-          _openDemo();
+          _openAvatar();
         },
       ),
     );
+  }
+
+  Future<void> _openAvatar() async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AvatarScreen(store: widget.store)));
+    trip.avatarChanged();
+    if (mounted) setState(() {});
   }
 
   void _openShare() {
@@ -306,10 +354,6 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       isScrollControlled: true,
       builder: (ctx) => _ShareSheet(trip: trip),
     );
-  }
-
-  void _openDemo() {
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => DemoScreen(store: widget.store)));
   }
 
   // ---- map layers ------------------------------------------------------------
@@ -326,7 +370,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     for (final k in PlaceKind.values) {
       final v = _placeView(k);
       if (v == null) continue;
-      final col = k == PlaceKind.office ? GoliTheme.red : const Color(0xFF2F5D8A);
+      final col = _pinOf(k).color;
       out.add(CircleMarker(
         point: _ll(v.c),
         radius: v.r,
@@ -354,18 +398,18 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     for (final k in PlaceKind.values) {
       final v = _placeView(k);
       if (v == null) continue;
-      final office = k == PlaceKind.office;
+      final pin = _pinOf(k);
       out.add(Marker(
         point: _ll(v.c),
         width: 40,
         height: 48,
         alignment: Alignment.topCenter,
-        child: GestureDetector(
-          onTap: v.editing ? null : () => _editPlace(k),
-          child: _PlacePin(
-            icon: office ? Icons.business_center : Icons.bed,
-            color: office ? GoliTheme.red : const Color(0xFF2F5D8A),
-            big: v.editing,
+        child: Semantics(
+          button: true,
+          label: '${k.title}. Tap to adjust.',
+          child: GestureDetector(
+            onTap: v.editing ? null : () => _editPlace(k),
+            child: _PlacePin(icon: pin.icon, color: pin.color, big: v.editing),
           ),
         ),
       ));
@@ -378,10 +422,6 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final h = _panelKey.currentContext?.size?.height;
-      if (h != null && (h - _panelHeight).abs() > 1 && mounted) setState(() => _panelHeight = h);
-    });
 
     return Scaffold(
       body: Stack(children: [
@@ -411,8 +451,10 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
             ),
             CircleLayer(circles: _circles()),
             MarkerLayer(markers: _markers()),
-            if (trip.active && trip.position != null)
-              Builder(builder: (context) {
+            ListenableBuilder(
+              listenable: trip,
+              builder: (context, _) {
+                if (!trip.active || trip.position == null) return const SizedBox.shrink();
                 projector.camera = MapCamera.of(context);
                 return CatLayer(
                   session: trip.mirror,
@@ -420,47 +462,57 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                   scale: widget.store.catScale,
                   reducedMotion: widget.store.reducedMotion,
                 );
-              }),
+              },
+            ),
           ],
         ),
         Positioned(
           top: mq.padding.top + 8,
           left: 12,
           right: 12,
-          child: _Banners(trip: trip, onShare: _openShare),
+          child: ListenableBuilder(listenable: trip, builder: (_, _) => _Banners(trip: trip, onShare: _openShare)),
         ),
-        // OpenStreetMap attribution, always visible above the panel.
-        Positioned(
-          right: 10,
-          bottom: mq.padding.bottom + _panelHeight + 14,
-          child: GestureDetector(
-            onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'),
-                mode: LaunchMode.externalApplication),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(6)),
-              child: const Text('© OpenStreetMap contributors', style: TextStyle(fontSize: 11, color: Color(0xFF333333))),
-            ),
-          ),
-        ),
-        if (trip.active && !_follow && _draft == null)
-          Positioned(
-            right: 14,
-            bottom: mq.padding.bottom + _panelHeight + 40,
-            child: FloatingActionButton.small(
-              heroTag: 'recenter',
-              tooltip: 'Back to GoliCat',
-              onPressed: _recenter,
-              child: const Icon(Icons.my_location),
-            ),
-          ),
+        // Recenter button, attribution and the panel stack from the bottom up,
+        // so nothing has to be measured or jumps after the first frame.
         Positioned(
           left: 10,
           right: 10,
           bottom: mq.padding.bottom + 10,
-          child: KeyedSubtree(
-            key: _panelKey,
-            child: _draft != null
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+            ListenableBuilder(
+              listenable: trip,
+              builder: (_, _) {
+                final show = trip.active && !_follow && _draft == null;
+                return AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.bottomRight,
+                  child: show
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 4, bottom: 10),
+                          child: FloatingActionButton.small(
+                            heroTag: 'recenter',
+                            tooltip: 'Back to GoliCat',
+                            onPressed: _recenter,
+                            child: const Icon(Icons.my_location),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                );
+              },
+            ),
+            GestureDetector(
+              onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright'),
+                  mode: LaunchMode.externalApplication),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(6)),
+                child: const Text('© OpenStreetMap contributors', style: TextStyle(fontSize: 11, color: Color(0xFF333333))),
+              ),
+            ),
+            const SizedBox(height: 4),
+            ListenableBuilder(listenable: trip, builder: (context, _) {
+              return _draft != null
                 ? _PlaceEditor(
                     draft: _draft!,
                     canUseCurrent: trip.position != null,
@@ -472,6 +524,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                     },
                     onRadius: (r) => setState(() => _draft!.radius = r),
                     onSave: _saveDraft,
+                    saving: _savingPlace,
                     onCancel: () => setState(() => _draft = null),
                     onRemove: _draft!.existing ? _removeDraft : null,
                   )
@@ -479,12 +532,13 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                     trip: trip,
                     onStart: _startRoaming,
                     onEnd: _endTrip,
-                    onOffice: () => _editPlace(PlaceKind.office),
+                    onPlaces: _pickPlaceToEdit,
                     onMore: _openSettings,
-                    onDemo: _openDemo,
+                    onAvatar: _openAvatar,
                     onShare: _openShare,
-                  ),
-          ),
+                  );
+            }),
+          ]),
         ),
       ]),
     );
@@ -520,7 +574,10 @@ class _PlacePin extends StatelessWidget {
   }
 }
 
-String _hm(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+String _hm(DateTime t) {
+  final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
+  return '$h:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'AM' : 'PM'}';
+}
 
 String ago(Duration d) {
   if (d.inSeconds < 60) return '${d.inSeconds}s ago';
@@ -535,13 +592,13 @@ class _StatusPanel extends StatelessWidget {
     required this.trip,
     required this.onStart,
     required this.onEnd,
-    required this.onOffice,
+    required this.onPlaces,
     required this.onMore,
-    required this.onDemo,
+    required this.onAvatar,
     required this.onShare,
   });
   final TripController trip;
-  final VoidCallback onStart, onEnd, onOffice, onMore, onDemo, onShare;
+  final VoidCallback onStart, onEnd, onPlaces, onMore, onAvatar, onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -556,16 +613,17 @@ class _StatusPanel extends StatelessWidget {
           Row(children: [
             Expanded(
               child: FilledButton.icon(
-                onPressed: trip.state == TripState.starting ? null : onStart,
-                icon: const Icon(Icons.pets),
-                label: Text(trip.state == TripState.starting ? 'Finding you…' : 'Start roaming'),
+                onPressed: onStart, // guarded inside; stays bright while busy
+                icon: BusyIcon(busy: trip.state == TripState.starting, icon: Icons.pets),
+                label: BusyLabel(busy: trip.state == TripState.starting, text: 'Start roaming', busyText: 'Finding you…'),
                 style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
               ),
             ),
             const SizedBox(width: 8),
+            IconButton.outlined(onPressed: onAvatar, tooltip: 'Choose your cat', icon: const Icon(Icons.face_outlined)),
+            const SizedBox(width: 4),
             IconButton.outlined(onPressed: onMore, tooltip: 'Places & settings', icon: const Icon(Icons.tune)),
           ]),
-          TextButton(onPressed: onDemo, child: const Text('Try the demo (no location needed)')),
         ]),
       );
     }
@@ -586,17 +644,17 @@ class _StatusPanel extends StatelessWidget {
         Row(children: [
           Expanded(
             child: FilledButton.icon(
-              onPressed: onEnd,
-              icon: const Icon(Icons.stop_rounded),
-              label: const Text('End trip'),
+              onPressed: onEnd, // guarded inside; stays bright while busy
+              icon: BusyIcon(busy: trip.ending, icon: Icons.stop_rounded),
+              label: BusyLabel(busy: trip.ending, text: 'End trip', busyText: 'Ending…'),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(46)),
             ),
           ),
           const SizedBox(width: 8),
           OutlinedButton.icon(
-            onPressed: onOffice,
-            icon: const Icon(Icons.business_center_outlined, size: 18),
-            label: const Text('Office'),
+            onPressed: onPlaces,
+            icon: const Icon(Icons.place_outlined, size: 18),
+            label: const Text('Places'),
             style: OutlinedButton.styleFrom(minimumSize: const Size(0, 46)),
           ),
           const SizedBox(width: 6),
@@ -630,8 +688,9 @@ class _StatusPanel extends StatelessWidget {
       if (since != null) parts.add(since.inSeconds <= 2 ? 'Updated just now' : 'Updated ${ago(since)}');
       parts.add('±${s.accuracy.round()} m');
       if (s.moving) parts.add('${(s.speed * 3.6).toStringAsFixed(1)} km/h');
-      if (s.officePhase == PlacePhase.dwelling) parts.add('near the office…');
-      if (s.homePhase == PlacePhase.dwelling) parts.add('near home…');
+      for (final k in PlaceKind.values) {
+        if (s.phase(k) == PlacePhase.dwelling) parts.add('near ${k.title.substring(3).toLowerCase()}…');
+      }
     }
     return parts.join(' · ');
   }
@@ -705,7 +764,9 @@ class _Banners extends StatelessWidget {
         onAction: onShare,
       ));
     }
-    if (trip.active && trip.status != null) {
+    // Shown briefly at the start of a trip, then it gets out of the map's way.
+    final started = trip.status?.startedAt;
+    if (trip.active && started != null && DateTime.now().difference(started) < const Duration(seconds: 25)) {
       items.add(const _Banner(
           icon: Icons.lock_clock_outlined,
           text: 'Keeps roaming when the app is closed or locked. Tap End trip to stop.',
@@ -752,8 +813,10 @@ class _PlaceEditor extends StatelessWidget {
     required this.onSave,
     required this.onCancel,
     this.onRemove,
+    this.saving = false,
   });
   final _PlaceDraft draft;
+  final bool saving;
   final bool canUseCurrent;
   final VoidCallback onUseCurrent, onSave, onCancel;
   final VoidCallback? onRemove;
@@ -762,14 +825,17 @@ class _PlaceEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final office = draft.kind == PlaceKind.office;
+    final pin = _pinOf(draft.kind);
     return _Card(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(office ? 'My office' : 'My home', style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        Row(children: [
+          Icon(pin.icon, color: pin.color, size: 20),
+          const SizedBox(width: 8),
+          Text(draft.kind.title, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        ]),
         Text(
-          office
-              ? 'Stay inside the circle for about 2 minutes and GoliCat clocks in. Tap the map to move the pin.'
-              : 'Stay inside the circle for about 2 minutes and GoliCat goes to sleep. Tap the map to move the pin.',
+          'Stay inside the circle for about 2 minutes and ${draft.kind.arrivalText}. '
+          'Tap the map to move the pin.',
           style: t.bodySmall,
         ),
         Row(children: [
@@ -797,7 +863,13 @@ class _PlaceEditor extends StatelessWidget {
         Row(children: [
           Expanded(child: OutlinedButton(onPressed: onCancel, child: const Text('Cancel'))),
           const SizedBox(width: 8),
-          Expanded(child: FilledButton(onPressed: onSave, child: const Text('Save'))),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: onSave,
+              icon: BusyIcon(busy: saving, icon: Icons.check),
+              label: BusyLabel(busy: saving, text: 'Save', busyText: 'Saving…'),
+            ),
+          ),
         ]),
         const SizedBox(height: 6),
       ]),
@@ -818,7 +890,7 @@ class _WhyLocationSheet extends StatelessWidget {
           const SizedBox(height: 10),
           const Text('• To put the cat on the street you\'re actually on, and walk, wait or zoom when you do.'),
           const SizedBox(height: 6),
-          const Text('• Your location stays on this phone. No account, no uploads, no public feed.'),
+          const Text('• Your location stays on this phone unless you start a live share, and then only for as long as you choose. No account, no public feed.'),
           const SizedBox(height: 6),
           const Text('• Tracking runs only while a trip is on. End trip stops it completely.'),
           const SizedBox(height: 6),
@@ -836,10 +908,16 @@ class _WhyLocationSheet extends StatelessWidget {
 }
 
 class _SettingsSheet extends StatefulWidget {
-  const _SettingsSheet({required this.store, required this.trip, required this.onEditHome, required this.onDemo});
+  const _SettingsSheet({
+    required this.store,
+    required this.trip,
+    required this.onEditPlace,
+    required this.onAvatar,
+  });
   final AppStore store;
   final TripController trip;
-  final VoidCallback onEditHome, onDemo;
+  final ValueChanged<PlaceKind> onEditPlace;
+  final VoidCallback onAvatar;
   @override
   State<_SettingsSheet> createState() => _SettingsSheetState();
 }
@@ -860,6 +938,13 @@ class _SettingsSheetState extends State<_SettingsSheet> {
                 'Like Maps\' location sharing: a "GoliCat is roaming" notification stays until you end the trip. '
                 'On Xiaomi/Redmi, Oppo, Vivo and Realme phones also allow Autostart and set Battery saver to '
                 '"No restrictions" for GoliCat, or the phone may still stop it.'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.face_outlined),
+            title: const Text('Choose your cat'),
+            subtitle: Text('Now: ${CatSkin.byId(s.catSkinId).name}'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: widget.onAvatar,
           ),
           SwitchListTile(
             title: const Text('Reduced motion'),
@@ -883,18 +968,17 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               ),
             ]),
           ),
-          ListTile(
-            leading: const Icon(Icons.bed_outlined),
-            title: const Text('My home'),
-            subtitle: Text(s.place(PlaceKind.home) == null ? 'Not set: long-press the map' : 'Set · tap to adjust'),
-            onTap: widget.onEditHome,
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
+            child: Text('My places', style: TextStyle(fontWeight: FontWeight.w800)),
           ),
-          ListTile(
-            leading: const Icon(Icons.play_circle_outline),
-            title: const Text('Demo mode'),
-            subtitle: const Text('Simulated walk, tea, office and home. No location needed.'),
-            onTap: widget.onDemo,
-          ),
+          for (final k in PlaceKind.values)
+            ListTile(
+              leading: Icon(_pinOf(k).outlined, color: _pinOf(k).color),
+              title: Text(k.title),
+              subtitle: Text(s.place(k) == null ? '${k.blurb} · not set, long-press the map' : '${k.blurb} · set, tap to adjust'),
+              onTap: () => widget.onEditPlace(k),
+            ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Text('Your office, home and trips are stored only on this phone.'),
@@ -923,8 +1007,17 @@ class _ShareSheetState extends State<_ShareSheet> {
     ('Until trip ends', null),
   ];
   int _pick = 1;
-  bool _busy = false;
+  bool _busy = false, _sending = false;
   String? _error;
+
+  Future<void> _stop() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    await widget.trip.stopShare();
+    if (!mounted) return;
+    setState(() => _busy = false);
+    Navigator.pop(context);
+  }
 
 
   @override
@@ -946,15 +1039,21 @@ class _ShareSheetState extends State<_ShareSheet> {
   Future<void> _send() async {
     final trip = widget.trip;
     final link = trip.shareLink;
-    if (link == null) return;
+    if (link == null || _sending) return;
+    setState(() => _sending = true);
     final when = trip.shareUntilTripEnds ? 'until my trip ends' : 'until ${_hm(trip.shareUntil!)}';
-    await SharePlus.instance.share(ShareParams(
-      text: 'Watch me roam live with GoliCat 🐈 ($when):\n$link',
-      subject: 'My live location on GoliCat',
-    ));
+    try {
+      await SharePlus.instance.share(ShareParams(
+        text: 'Watch me roam live with GoliCat 🐈 ($when):\n$link',
+        subject: 'My live location on GoliCat',
+      ));
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   Future<void> _start() async {
+    if (_busy) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -1025,23 +1124,18 @@ class _ShareSheetState extends State<_ShareSheet> {
           const SizedBox(height: 4),
           if (!trip.shareActive)
             FilledButton.icon(
-              onPressed: _busy ? null : _start,
-              icon: _busy
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.share_location),
-              label: Text(_busy ? 'Making your link…' : 'Start sharing & send link'),
+              onPressed: _start,
+              icon: BusyIcon(busy: _busy, icon: Icons.share_location),
+              label: BusyLabel(busy: _busy, text: 'Start sharing & send link', busyText: 'Making your link…'),
               style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
             )
           else
             Row(children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await trip.stopShare();
-                    if (context.mounted) Navigator.pop(context);
-                  },
-                  icon: const Icon(Icons.stop_circle_outlined),
-                  label: const Text('Stop sharing'),
+                  onPressed: _stop,
+                  icon: BusyIcon(busy: _busy, icon: Icons.stop_circle_outlined),
+                  label: BusyLabel(busy: _busy, text: 'Stop sharing', busyText: 'Stopping…'),
                   style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                 ),
               ),
@@ -1049,7 +1143,7 @@ class _ShareSheetState extends State<_ShareSheet> {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: _send,
-                  icon: const Icon(Icons.send),
+                  icon: BusyIcon(busy: _sending, icon: Icons.send),
                   label: const Text('Send link'),
                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                 ),

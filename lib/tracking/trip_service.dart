@@ -93,7 +93,7 @@ Future<void> onServiceStart(ServiceInstance service) async {
     }
   };
 
-  for (final cmd in ['start', 'stop', 'startShare', 'stopShare', 'place', 'status']) {
+  for (final cmd in ['start', 'stop', 'startShare', 'stopShare', 'place', 'avatar', 'status']) {
     service.on(cmd).listen((args) async {
       try {
         await LocalBackend.handle(runner, cmd, args == null ? null : Map<String, dynamic>.from(args));
@@ -105,7 +105,11 @@ Future<void> onServiceStart(ServiceInstance service) async {
 
   if (store.tripRunning) {
     // Fresh start from the app, or Android brought the service back: carry on.
-    await runner.start(resume: true);
+    try {
+      await runner.start(resume: true);
+    } catch (e) {
+      debugPrint('trip service start failed: $e');
+    }
     if (!runner.running) {
       await store.setTripRunning(false);
       service.invoke('status', runner.status());

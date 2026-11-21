@@ -63,6 +63,8 @@ class MotionEngine {
   int _slowVotes = 0;
   LocationFix? _lastReliable;
   DateTime? _lastFixAt;
+  DateTime? _firstFixAt;
+  DateTime? _lastGoodAt;
   double _lastAcc = 9999;
   bool slowSampling = false;
 
@@ -80,16 +82,30 @@ class MotionEngine {
     _fastVotes = _slowVotes = 0;
     _lastReliable = null;
     _lastFixAt = null;
+    _firstFixAt = null;
+    _lastGoodAt = null;
     _lastAcc = 9999;
   }
 
   bool isReliable(LocationFix f) => f.accuracy <= t.reliableAccuracyM;
 
+  /// A coarser fix still counts once good ones have dried up for a while.
+  bool _usable(LocationFix f) {
+    if (isReliable(f)) return true;
+    if (f.accuracy > t.degradedAccuracyM) return false;
+    // Measured from the last *good* fix, so once degraded we stay degraded
+    // until a good one returns (not: one coarse fix every staleAfter).
+    final last = _lastGoodAt ?? _firstFixAt;
+    return last == null || f.time.difference(last) > t.staleAfter;
+  }
+
   /// Feed one fix. Returns true if it was used for movement.
   bool addFix(LocationFix f) {
     _lastFixAt = f.time;
+    _firstFixAt ??= f.time;
     _lastAcc = f.accuracy;
-    if (!isReliable(f)) return false;
+    if (isReliable(f)) _lastGoodAt = f.time;
+    if (!_usable(f)) return false;
 
     final prev = _lastReliable;
     if (prev != null) {

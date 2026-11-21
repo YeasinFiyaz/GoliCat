@@ -60,6 +60,7 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
   DateTime? _until;
   Timer? _poll, _clockTick;
   int _failures = 0;
+  bool _fetching = false;
   GeoPoint? _camTarget;
 
   late final AnimationController _glide = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
@@ -102,6 +103,8 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
   }
 
   Future<void> _fetch() async {
+    if (_fetching) return; // slow network: don't pile requests on top of each other
+    _fetching = true;
     try {
       final r = await _client.get(widget.api.resolve(widget.shareId!)).timeout(const Duration(seconds: 8));
       if (!mounted) return;
@@ -111,6 +114,9 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
       if (r.statusCode != 200) throw Exception('status ${r.statusCode}');
       final j = jsonDecode(r.body) as Map<String, dynamic>;
       _until = j['until'] is num ? DateTime.fromMillisecondsSinceEpoch((j['until'] as num).toInt()) : null;
+      if (j['now'] is num) {
+        _session.clockOffset = Duration(milliseconds: (j['now'] as num).toInt() - DateTime.now().millisecondsSinceEpoch);
+      }
       final st = ShareState.fromJson(j['state'] as Map<String, dynamic>?);
       if (st != null && (st.at != _session.state?.at || _session.state == null)) {
         _session.apply(st);
@@ -121,6 +127,8 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
       if (!mounted) return;
       _failures++;
       if (_failures >= 3) setState(() => _status = ViewStatus.offline);
+    } finally {
+      _fetching = false;
     }
   }
 
@@ -189,7 +197,7 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
                   userAgentPackageName: 'bd.golicat.viewer',
                   maxNativeZoom: 19,
                 ),
-              if (st != null && _status == ViewStatus.live)
+              if (st != null && (_status == ViewStatus.live || _status == ViewStatus.offline))
                 Builder(
                   builder: (context) {
                     _projector.camera = MapCamera.of(context);
@@ -204,7 +212,7 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
             child: GestureDetector(
               onTap: () => launchUrl(Uri.parse('https://www.openstreetmap.org/copyright')),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(6),

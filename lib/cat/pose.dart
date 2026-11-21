@@ -26,6 +26,9 @@ enum P {
   home, blanket, blanketHead, bubble, zzz, dream, dreamKind, kick,
   pinVis, pinWobble,
   speedLines, dust, exclaim, question, sweat, impact, time,
+  // Study desk (education) and the hangout bench.
+  desk, pencil, write, lamp,
+  bench, headphones, notes, beat,
 }
 
 class Pose {

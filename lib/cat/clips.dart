@@ -22,6 +22,8 @@ enum ClipId {
   unfoldMap, lost, foldMap,
   hopOnChair, typing, fishGag, leaveOffice,
   tuckIn, sleep, grumpy, wakeUp,
+  sitAtDesk, study, stuckGag, closeBook,
+  headphonesOn, vibe, danceGag, headphonesOff,
 }
 
 class ClipSpec {
@@ -57,6 +59,14 @@ const clipSpecs = <ClipId, ClipSpec>{
   ClipId.sleep: ClipSpec(null, 'বাসায় ঘুমাচ্ছি · Asleep at home'),
   ClipId.grumpy: ClipSpec(2.0, 'Five more minutes…', gag: true),
   ClipId.wakeUp: ClipSpec(2.4, 'Waking up — big stretch'),
+  ClipId.sitAtDesk: ClipSpec(1.8, 'Glasses on, notebook open…'),
+  ClipId.study: ClipSpec(null, 'পড়ছি · Doing homework'),
+  ClipId.stuckGag: ClipSpec(2.8, 'Stuck on a sum…', gag: true),
+  ClipId.closeBook: ClipSpec(1.6, 'Pencil down — off we go'),
+  ClipId.headphonesOn: ClipSpec(1.7, 'Headphones on…'),
+  ClipId.vibe: ClipSpec(null, 'আড্ডা · Hanging out'),
+  ClipId.danceGag: ClipSpec(2.4, 'This is the good bit!', gag: true),
+  ClipId.headphonesOff: ClipSpec(1.5, 'Headphones off — let\'s go'),
 };
 
 // ---------------------------------------------------------------------------
@@ -102,6 +112,29 @@ Pose officePose() => sitPose().set({
       P.tailBend: -5, P.tailCurl: 1,
       P.scarfNeck: 0, P.glassesFace: 1,
       P.eyeOpen: 0.78, P.brow: -0.6, P.eyeLook: 0.7,
+    });
+
+/// Seated at a low study table, paws on the notebook, glasses on.
+Pose studyPose() => sitPose().set({
+      P.desk: 1, P.pinVis: 0, P.shadow: 0.85,
+      P.rootX: -6,
+      P.headX: 8, P.headY: -43, P.headRot: 0.3,
+      // Forearms up on the table, paws on the notebook.
+      P.fnX: 7, P.fnY: -22, P.fnA1: 0.81, P.fnA2: 1.06,
+      P.ffX: 3, P.ffY: -22, P.ffA1: 0.77, P.ffA2: 1.16,
+      P.glassesFace: 1, P.pencil: 1, P.lamp: 1,
+      P.eyeOpen: 0.85, P.eyeLook: 0.9, P.brow: -0.3,
+      P.scarfFlow: 0.05,
+    });
+
+/// Sitting on the hangout bench with headphones on.
+Pose vibePose() => sitPose().set({
+      P.bench: 1, P.pinVis: 0, P.shadow: 0.55,
+      P.rootY: -11,
+      P.headphones: 1, P.notes: 1, P.beat: 1,
+      P.eyeOpen: 0.35, P.eyeLook: 0.2,
+      P.tailX: -12, P.tailY: -6, P.tailEndX: 20, P.tailEndY: 2,
+      P.scarfFlow: 0.1,
     });
 
 Pose lyingPose() => Pose.zero().set({
@@ -443,6 +476,132 @@ Pose sampleClip(ClipId id, double t, ClipCtx c) {
       out[P.scarfNeck] = p[P.scarfNeck];
       return out;
 
+    // ---- education: homework at a low desk ------------------------------
+    case ClipId.sitAtDesk:
+      final start = standPose().set({P.pinVis: 0, P.rootX: -24});
+      final seat = studyPose().set({P.glassesFace: 0, P.pencil: 0, P.eyeOpen: 1, P.brow: 0, P.eyeLook: 0, P.headRot: 0});
+      final sit = easeInOut(span(t, 0.2, 0.8));
+      final p = Pose.lerp(start, seat, sit);
+      // Glasses pushed up the nose, then the pencil is picked up and the head drops to the page.
+      final push = keys(t, [[0, 0], [0.85, 0], [1.0, 1], [1.12, 1], [1.3, 0]]);
+      p.set({
+        P.desk: easeOut(span(t, 0, 0.4)),
+        P.lamp: span(t, 0.3, 0.5),
+        P.glassesFace: span(t, 0.95, 1.05),
+        P.pencil: span(t, 1.3, 1.45),
+        P.headRot: 0.3 * easeInOut(span(t, 1.4, 1.75)),
+        P.eyeLook: 0.9 * easeInOut(span(t, 1.4, 1.75)),
+        P.eyeOpen: 1 - 0.15 * span(t, 1.4, 1.75),
+        P.squash: 0.15 * a * (span(t, 0.75, 0.85) - span(t, 0.85, 0.95)),
+        P.scarfPhase: c.time * 3,
+      });
+      p[P.fnA1] += (2.5 - p[P.fnA1]) * push;
+      p[P.fnA2] += (1.0 - p[P.fnA2]) * push;
+      return p;
+
+    case ClipId.study:
+      return _studying(t, c);
+
+    case ClipId.stuckGag:
+      final p = studyPose();
+      final scratch = keys(t, [[0, 0], [0.25, 1], [1.6, 1], [1.9, 0]]);
+      final idea = span(t, 1.9, 2.05) * (1 - span(t, 2.6, 2.8));
+      p.set({
+        P.headRot: 0.3 - 0.45 * scratch, P.eyeLook: 0.9 - 1.4 * scratch, P.brow: -0.3 + 1.1 * scratch,
+        P.eyeOpen: 0.85 + 0.15 * scratch,
+        P.question: scratch,
+        // Far paw scratches behind the ear; near paw taps the pencil.
+        P.ffA1: 0.77 + (2.35 - 0.77) * scratch, P.ffA2: 1.16 - 0.3 * scratch,
+        P.fnA2: 1.06 + 0.12 * math.sin(t * 22) * scratch,
+        P.earBack: 0.3 * math.max(0, math.sin(t * 9)) * scratch,
+        P.exclaim: idea,
+        P.mouth: 0.3 * idea,
+        P.write: ((t / 9) % 1) + 0.3 * span(t, 2.0, 2.8),
+        P.scarfPhase: c.time * 2,
+      });
+      if (t > 2.0) p[P.fnA2] = 1.06 + 0.2 * math.sin(t * 40) * a;
+      return p;
+
+    case ClipId.closeBook:
+      final p = studyPose();
+      final reach = keys(t, [[0, 0], [0.15, 1], [0.35, 1], [0.55, 0]]);
+      p.set({
+        P.pencil: 1 - span(t, 0.1, 0.2),
+        P.fnA1: 0.81 + (2.5 - 0.81) * reach, P.fnA2: 1.06 - 0.1 * reach,
+        P.glassesFace: 1 - span(t, 0.3, 0.4),
+        P.headRot: 0.3 * (1 - span(t, 0.1, 0.4)), P.eyeLook: 0.9 * (1 - span(t, 0.1, 0.4)),
+        P.eyeOpen: 1, P.brow: 0,
+        P.lamp: 1 - span(t, 0.5, 0.6),
+      });
+      final up = easeInOut(span(t, 0.6, 1.1));
+      final walk = _walkCycle(t, c).set({P.desk: 1});
+      final out = Pose.lerp(p, walk, up);
+      out[P.rootY] = -6 * a * math.sin(math.pi * up);
+      out[P.desk] = 1 - easeInOut(span(t, 1.1, 1.6));
+      out[P.glassesFace] = p[P.glassesFace];
+      out[P.pencil] = p[P.pencil];
+      out[P.lamp] = p[P.lamp];
+      return out;
+
+    // ---- hangout: headphones on a bench ----------------------------------
+    case ClipId.headphonesOn:
+      final start = standPose().set({P.pinVis: 0, P.rootX: -4});
+      final seat = vibePose().set({P.headphones: 0, P.notes: 0, P.beat: 0, P.eyeOpen: 1, P.eyeLook: 0});
+      final hop = easeInOut(span(t, 0.2, 0.7));
+      final p = Pose.lerp(start, seat, hop);
+      final reach = keys(t, [[0, 0], [0.8, 0], [1.0, 1], [1.15, 1], [1.35, 0]]);
+      p.set({
+        P.bench: easeOut(span(t, 0, 0.3)),
+        P.rootY: -11 * hop - 8 * a * math.sin(math.pi * hop),
+        P.squash: 0.18 * a * (span(t, 0.7, 0.78) - span(t, 0.78, 0.9)),
+        P.headphones: span(t, 1.08, 1.15),
+        P.notes: span(t, 1.35, 1.7), P.beat: span(t, 1.3, 1.5),
+        P.eyeOpen: 1 - 0.65 * span(t, 1.4, 1.7),
+        P.mouth: 0.25 * span(t, 1.15, 1.3) * (1 - span(t, 1.5, 1.7)),
+        P.scarfPhase: c.time * 3,
+      });
+      p[P.fnA1] += (2.45 - p[P.fnA1]) * reach;
+      p[P.fnA2] += (0.9 - p[P.fnA2]) * reach;
+      return p;
+
+    case ClipId.vibe:
+      return _vibing(t, c);
+
+    case ClipId.danceGag:
+      final p = _vibing(t, c);
+      final on = span(t, 0, 0.2) * (1 - span(t, 2.0, 2.4));
+      final beat = (math.sin(2 * math.pi * t * 2.2)).abs();
+      p.set({
+        P.rootY: -11 - 5 * a * beat * on,
+        P.squash: 0.12 * a * (1 - beat) * on,
+        P.headRot: 0.22 * a * math.sin(2 * math.pi * t * 2.2) * on,
+        P.eyeOpen: 0.05, P.mouth: 0.4 * on,
+        P.earFront: 0.4 * beat * on, P.earBack: 0.4 * beat * on,
+        P.fnA1: 0.05 + 2.2 * on * (0.5 + 0.5 * math.sin(2 * math.pi * t * 2.2)),
+        P.ffA1: 0.05 + 2.2 * on * (0.5 + 0.5 * math.sin(2 * math.pi * t * 2.2 + math.pi)),
+        P.notes: 1 + on, P.exclaim: span(t, 0, 0.1) * (1 - span(t, 0.5, 0.7)),
+      });
+      return p;
+
+    case ClipId.headphonesOff:
+      final p = vibePose();
+      final reach = keys(t, [[0, 0], [0.1, 1], [0.3, 1], [0.5, 0]]);
+      p.set({
+        P.notes: 1 - span(t, 0, 0.2), P.beat: 1 - span(t, 0, 0.3),
+        P.headphones: 1 - span(t, 0.28, 0.36),
+        P.eyeOpen: 0.35 + 0.65 * span(t, 0.2, 0.4),
+      });
+      p[P.fnA1] += (2.45 - p[P.fnA1]) * reach;
+      p[P.fnA2] += (0.9 - p[P.fnA2]) * reach;
+      final hop = easeInOut(span(t, 0.55, 1.0));
+      final walk = _walkCycle(t, c).set({P.bench: 1});
+      final out = Pose.lerp(p, walk, hop);
+      out[P.rootY] = -11 * (1 - hop) - 7 * a * math.sin(math.pi * hop);
+      out[P.bench] = 1 - easeInOut(span(t, 1.0, 1.5));
+      out[P.headphones] = p[P.headphones];
+      out[P.notes] = p[P.notes];
+      return out;
+
     case ClipId.tuckIn:
       final yawn = keys(t, [[0, 0], [0.3, 0], [0.55, 1], [0.95, 1], [1.15, 0]]);
       final st = standPose().set({P.pinVis: 0, P.home: easeOut(span(t, 0, 0.4)), P.blanket: 0});
@@ -548,6 +707,55 @@ Pose _typing(double t, ClipCtx c) {
   p[P.screenText] = ((t / 9) % 1);
   p[P.time] = c.time;
   p[P.tailCurl] = 1 + 0.15 * math.sin(t * 2);
+  return p;
+}
+
+/// Writing: the pencil paw scribbles, the head follows the line, and now
+/// and then the cat sits back to read what it wrote.
+Pose _studying(double t, ClipCtx c) {
+  final a = c.amp;
+  const loop = 11.0;
+  final u = t % loop;
+  final p = studyPose();
+  final reading = keys(u, [[0, 0], [7.4, 0], [7.9, 1], [9.6, 1], [10.1, 0]]);
+  final ph = 2 * math.pi * u * 2.8;
+  p.set({
+    P.fnA1: 0.81 + 0.07 * a * math.sin(ph) * (1 - reading),
+    P.fnA2: 1.06 + 0.14 * a * math.sin(ph * 1.5) * (1 - reading),
+    P.headRot: 0.3 - 0.35 * reading + 0.03 * a * math.sin(ph / 2),
+    P.headX: 8 + 1.5 * a * math.sin(ph / 4) * (1 - reading),
+    P.eyeLook: 0.9 - 0.6 * reading + 0.1 * math.sin(ph / 3),
+    P.eyeOpen: (u > 8.3 && u < 8.45 ? 0.1 : 0.85) * blink(c.time, 5.3),
+    P.brow: -0.3 + 0.2 * reading,
+    P.mouth: u > 8.5 && u < 9.2 ? 0.2 : 0,
+    P.write: (t / loop) % 1,
+    P.tailCurl: 0.3 + 0.25 * math.sin(t * 1.7),
+    P.earFront: 0.1 * math.max(0, math.sin(t * 3.1)),
+    P.scarfPhase: c.time * 2,
+  });
+  return p;
+}
+
+/// Head bobbing to the beat, paw tapping, tail swaying; notes drift up.
+Pose _vibing(double t, ClipCtx c) {
+  final a = c.amp;
+  final bpm = 2.0; // beats per second
+  final ph = 2 * math.pi * t * bpm;
+  final beat = math.max(0.0, math.sin(ph));
+  final p = vibePose();
+  p.set({
+    P.headY: -45 - 1.6 * a * beat,
+    P.headRot: 0.1 * a * math.sin(ph / 2),
+    P.bodyH: 12.5 + 0.3 * a * beat,
+    P.fnA1: 0.05 + 0.35 * a * math.max(0, math.sin(ph + math.pi / 2)), P.fnA2: -0.3 * a * beat,
+    P.tailEndY: 2 - 4 * math.sin(ph / 4), P.tailBend: 7 + 3 * math.sin(ph / 2),
+    P.tailCurl: 0.3 + 0.3 * math.sin(ph / 2),
+    P.earFront: 0.12 * a * beat, P.earBack: 0.08 * a * beat,
+    P.eyeOpen: 0.35 * blink(c.time, 6.0),
+    P.mouth: (t % 9) > 6 && (t % 9) < 7.2 ? 0.2 * a : 0, // humming along
+    P.beat: beat,
+    P.time: c.time,
+  });
   return p;
 }
 

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:golicat/cat/cat_director.dart';
 import 'package:golicat/cat/clips.dart';
 import 'package:golicat/core/geo.dart';
-import 'package:golicat/demo/demo_script.dart';
+import 'support/demo_script.dart';
 import 'package:golicat/tracking/activity_engine.dart';
 import 'package:golicat/tracking/fix.dart';
 import 'package:golicat/tracking/motion_engine.dart';
@@ -20,7 +20,8 @@ LocationFix fx(double s, double e, double n, {double acc = 8, double speed = -1}
 /// Runs the full demo script and returns the mode at every second.
 Map<int, CatMode> runScript() {
   final script = DemoScript();
-  final eng = ActivityEngine(office: DemoScript.office, home: DemoScript.home);
+  final eng = ActivityEngine(
+      office: DemoScript.office, home: DemoScript.home, education: DemoScript.education, hangout: DemoScript.hangout);
   eng.start(DemoScript.epoch);
   final out = <int, CatMode>{};
   var i = 0;
@@ -175,6 +176,28 @@ void main() {
       expect(e.evaluate(_t0.add(const Duration(seconds: 61))).mode, isNot(CatMode.lost));
     });
 
+    test('no network: coarse fixes are followed once good ones dry up', () {
+      final e = ActivityEngine()..start(_t0);
+      for (var s = 0; s < 20; s++) {
+        e.addFix(fx(s.toDouble(), s * 1.4, 0, speed: 1.4));
+      }
+      // Assisted GPS gone: every fix is 60 m. Ignored at first…
+      for (var s = 20; s < 40; s++) {
+        e.addFix(fx(s.toDouble(), s * 1.4, 0, speed: 1.4, acc: 60));
+      }
+      final frozen = e.evaluate(_t0.add(const Duration(seconds: 39)));
+      expect(frozen.position!.lng, closeTo(e.evaluate(_t0.add(const Duration(seconds: 19))).position!.lng, 1e-9));
+      // …but after staleAfter the coarse track is used, so the cat keeps going.
+      for (var s = 40; s < 90; s++) {
+        e.addFix(fx(s.toDouble(), s * 1.4, 0, speed: 1.4, acc: 60));
+      }
+      final later = e.evaluate(_t0.add(const Duration(seconds: 89)));
+      expect(later.mode, isNot(CatMode.lost));
+      expect(later.position!.lng, greaterThan(frozen.position!.lng + 0.0001));
+      // Junk (120 m) is still never followed.
+      expect(e.motion.addFix(fx(90, 500, 0, acc: 120)), isFalse);
+    });
+
     test('tea break starts after a minute of stillness', () {
       final e = ActivityEngine()..start(_t0);
       for (var s = 0; s < 100; s++) {
@@ -208,9 +231,15 @@ void main() {
       expect(first, lessThan(760));
       expect(all(first, 930, CatMode.atWork), isTrue);
     });
-    test('leaves the office, then sleeps at home', () {
+    test('leaves the office, hangs out, studies, then sleeps at home', () {
       expect(any(1025, 1060, CatMode.atWork), isFalse);
-      expect(all(1330, 1500, CatMode.atHome), isTrue);
+      expect(any(1075, 1300, CatMode.hangingOut), isTrue);
+      expect(all(1240, 1300, CatMode.hangingOut), isTrue, reason: '${[for (var s = 1200; s <= 1300; s += 10) modes[s]!.name]}');
+      expect(any(1400, 1650, CatMode.studying), isTrue);
+      expect(all(1580, 1650, CatMode.studying), isTrue, reason: '${[for (var s = 1500; s <= 1650; s += 10) modes[s]!.name]}');
+      // Leaving needs the wider exit ring (hysteresis), so a few seconds after 1700.
+      expect(any(1735, 1950, CatMode.studying), isFalse);
+      expect(all(1880, 1950, CatMode.atHome), isTrue); // home at 1740 + 2 min dwell
     });
   });
 
@@ -221,6 +250,10 @@ void main() {
       expect(CatDirector.plan(ClipId.walk, CatMode.atWork), [ClipId.hopOnChair, ClipId.typing]);
       expect(CatDirector.plan(ClipId.typing, CatMode.walking), [ClipId.leaveOffice, ClipId.walk]);
       expect(CatDirector.plan(ClipId.sleep, CatMode.walking), [ClipId.wakeUp, ClipId.walk]);
+      expect(CatDirector.plan(ClipId.walk, CatMode.studying), [ClipId.sitAtDesk, ClipId.study]);
+      expect(CatDirector.plan(ClipId.study, CatMode.walking), [ClipId.closeBook, ClipId.walk]);
+      expect(CatDirector.plan(ClipId.walk, CatMode.hangingOut), [ClipId.headphonesOn, ClipId.vibe]);
+      expect(CatDirector.plan(ClipId.vibe, CatMode.atHome), [ClipId.headphonesOff, ClipId.tuckIn, ClipId.sleep]);
     });
 
     test('mode changes play through visibly and settle into the right loop', () {

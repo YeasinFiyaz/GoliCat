@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FBF6EE</color>
+    <!-- Shown while Flutter starts: the app's paper colour, so there is no flash. -->
+    <color name="launch_background">#FBF6EE</color>
 </resources>

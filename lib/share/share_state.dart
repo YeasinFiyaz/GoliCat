@@ -12,6 +12,7 @@ class ShareState {
     this.speed = 0,
     this.moving = false,
     this.at,
+    this.skin,
   });
 
   final GeoPoint point;
@@ -24,15 +25,21 @@ class ShareState {
   /// Server receive time (viewer side only).
   final DateTime? at;
 
+  /// Avatar id, so the person watching sees the same cat (viewer side only).
+  final String? skin;
+
   Map<String, dynamic> toJson() => {
         'lat': point.lat,
         'lng': point.lng,
-        'acc': double.parse(accuracy.toStringAsFixed(1)),
-        'heading': double.parse(headingDeg.toStringAsFixed(1)),
-        'speed': double.parse(speed.toStringAsFixed(2)),
+        'acc': double.parse(_finite(accuracy).toStringAsFixed(1)),
+        'heading': double.parse(_finite(headingDeg).toStringAsFixed(1)),
+        'speed': double.parse(_finite(speed).toStringAsFixed(2)),
         'moving': moving,
         'mode': mode.name,
       };
+
+  /// JSON has no NaN/Infinity; a bad reading must not break every push.
+  static double _finite(double v) => v.isFinite ? v : 0;
 
   static ShareState? fromJson(Map<String, dynamic>? j) {
     if (j == null) return null;
@@ -48,6 +55,7 @@ class ShareState {
       speed: (j['speed'] as num?)?.toDouble() ?? 0,
       moving: j['moving'] == true,
       at: ts is num ? DateTime.fromMillisecondsSinceEpoch(ts.toInt()) : null,
+      skin: j['skin'] is String ? j['skin'] as String : null,
     );
   }
 }

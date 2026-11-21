@@ -1,6 +1,6 @@
 import '../core/geo.dart';
 
-/// One location reading from the phone (or from the demo simulator).
+/// One location reading from the phone (or from a test script).
 class LocationFix {
   const LocationFix({
     required this.point,
