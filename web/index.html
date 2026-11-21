@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Watch GoliCat, a Dhaka street cat, walk the streets live.">
+  <meta property="og:title" content="GoliCat is roaming live 🐈">
+  <meta property="og:description" content="Tap to watch the cat move on the map in real time. No app needed.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://golicat.yeasinfiyaz.workers.dev/og.png">
+  <meta name="theme-color" content="#D7263D">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="GoliCat">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <title>GoliCat · live</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { margin: 0; height: 100%; background: #FBF6EE; }
+    #boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 14px; font: 600 16px/1.4 system-ui, sans-serif; color: #2E221B; }
+    #boot img { width: 84px; height: 84px; border-radius: 50%; animation: bob 1.1s ease-in-out infinite; }
+    @keyframes bob { 50% { transform: translateY(-8px); } }
+    @media (prefers-reduced-motion: reduce) { #boot img { animation: none; } }
+  </style>
+</head>
+<body>
+  <div id="boot"><img src="icons/Icon-192.png" alt=""><div>Finding GoliCat…</div></div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var b = document.getElementById('boot'); if (b) b.remove();
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
