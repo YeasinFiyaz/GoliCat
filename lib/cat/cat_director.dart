@@ -50,6 +50,7 @@ class CatDirector {
         CatMode.atHome => ClipId.sleep,
         CatMode.studying => ClipId.study,
         CatMode.hangingOut => ClipId.vibe,
+        CatMode.jammed => ClipId.jam,
       };
 
   /// The loop "family" a clip belongs to (what we are coming out of).
@@ -63,6 +64,7 @@ class CatDirector {
         ClipId.tuckIn || ClipId.sleep || ClipId.grumpy => ClipId.sleep,
         ClipId.sitAtDesk || ClipId.study || ClipId.stuckGag || ClipId.closeBook => ClipId.study,
         ClipId.headphonesOn || ClipId.vibe || ClipId.danceGag || ClipId.headphonesOff => ClipId.vibe,
+        ClipId.jamOn || ClipId.jam || ClipId.jamDance || ClipId.jamOff => ClipId.jam,
       };
 
   /// The transition plan from the current base loop into [target]'s loop.
@@ -84,6 +86,8 @@ class CatDirector {
         out.add(ClipId.closeBook);
       case ClipId.vibe:
         out.add(ClipId.headphonesOff);
+      case ClipId.jam:
+        out.add(ClipId.jamOff);
       case ClipId.fast:
         if (to == ClipId.walk || to == ClipId.idle || to == ClipId.tea) out.add(ClipId.skid);
       default:
@@ -103,6 +107,8 @@ class CatDirector {
         out.add(ClipId.sitAtDesk);
       case ClipId.vibe:
         out.add(ClipId.headphonesOn);
+      case ClipId.jam:
+        out.add(ClipId.jamOn);
       case ClipId.walk:
         if (fromBase == ClipId.tea) out.add(ClipId.catchUp);
       default:
@@ -192,6 +198,12 @@ class CatDirector {
           ..clear()
           ..add(ClipId.vibe);
         _start(ClipId.danceGag);
+        return true;
+      case ClipId.jam:
+        _queue
+          ..clear()
+          ..add(ClipId.jam);
+        _start(ClipId.jamDance);
         return true;
       default:
         return false;

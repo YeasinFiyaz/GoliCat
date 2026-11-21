@@ -6,7 +6,7 @@
 const ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const MAX_SHARE_MS = 24 * 3600 * 1000;
 const MIN_WRITE_GAP_MS = 1500;
-const MODES = new Set(['starting', 'idle', 'waiting', 'walking', 'fast', 'lost', 'atWork', 'atHome', 'studying', 'hangingOut']);
+const MODES = new Set(['starting', 'idle', 'waiting', 'walking', 'fast', 'lost', 'atWork', 'atHome', 'studying', 'hangingOut', 'jammed']);
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {

@@ -16,6 +16,8 @@ class Tuning {
     this.fastExitSpeed = 2.6,
     this.maxPlausibleSpeed = 70,
     this.teaDelay = const Duration(seconds: 60),
+    this.jamDelay = const Duration(seconds: 20),
+    this.jamRecentRide = const Duration(seconds: 30),
     this.slowSamplingAfter = const Duration(seconds: 90),
     this.placeDwell = const Duration(minutes: 2),
     this.placePassWindow = const Duration(seconds: 60),
@@ -58,6 +60,13 @@ class Tuning {
 
   /// Standing still this long: cha break.
   final Duration teaDelay;
+
+  /// Stopped this long right after riding: traffic jam, headphones on.
+  final Duration jamDelay;
+
+  /// A halt counts as "after riding" if the cat was fast within this long
+  /// before it (a bus slows to walking speed for a moment before it stops).
+  final Duration jamRecentRide;
 
   /// Standing still this long: the phone samples less often.
   final Duration slowSamplingAfter;

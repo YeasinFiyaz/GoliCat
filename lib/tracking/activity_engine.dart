@@ -7,7 +7,7 @@ import 'tuning.dart';
 
 /// What GoliCat should be doing. The animation layer turns changes between
 /// these into visible transitions (stash the tea, skid, hop onto the chair…).
-enum CatMode { starting, idle, waiting, walking, fast, lost, atWork, atHome, studying, hangingOut }
+enum CatMode { starting, idle, waiting, walking, fast, lost, atWork, atHome, studying, hangingOut, jammed }
 
 class ActivitySnapshot {
   const ActivitySnapshot({
@@ -107,8 +107,13 @@ class ActivityEngine {
         case MotionKind.fast:
           mode = CatMode.fast;
         case MotionKind.stationary:
-          final since = m.stationarySince ?? now;
-          mode = now.difference(since) >= tuning.teaDelay ? CatMode.waiting : CatMode.idle;
+          final still = now.difference(m.stationarySince ?? now);
+          if (m.stoppedFromFast) {
+            // The bus/rickshaw halted: a short wait is normal, longer is a jam.
+            mode = still >= tuning.jamDelay ? CatMode.jammed : CatMode.idle;
+          } else {
+            mode = still >= tuning.teaDelay ? CatMode.waiting : CatMode.idle;
+          }
         case MotionKind.unknown:
           mode = CatMode.starting;
       }

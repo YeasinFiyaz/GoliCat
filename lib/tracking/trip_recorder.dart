@@ -123,6 +123,8 @@ List<ComicPanel> comicFor(TripLog log) {
     pause = const ComicPanel(ClipId.stuckGag, 1.0, 'Stuck on a sum. Classic.');
   } else if (clips.contains(ClipId.vibe)) {
     pause = const ComicPanel(ClipId.vibe, 1.2, 'Headphones on. Dhaka fades away.');
+  } else if (clips.contains(ClipId.jam)) {
+    pause = const ComicPanel(ClipId.jam, 1.2, 'Stuck in a jam. Put a song on.');
   } else if (clips.contains(ClipId.lost)) {
     pause = const ComicPanel(ClipId.lost, 0.8, 'Lost the signal. Consulted the map.');
   } else if (clips.contains(ClipId.skid)) {
@@ -159,6 +161,10 @@ List<ComicPanel> comicFor(TripLog log) {
     case ClipId.headphonesOn:
     case ClipId.danceGag:
       ending = const ComicPanel(ClipId.vibe, 0.9, 'আড্ডা. Still vibing when the trip ended.');
+    case ClipId.jam:
+    case ClipId.jamOn:
+    case ClipId.jamDance:
+      ending = const ComicPanel(ClipId.jam, 1.2, 'জ্যাম. Still stuck when the trip ended.');
     case ClipId.fast:
       ending = const ComicPanel(ClipId.fast, 0.2, 'Still zooming when the trip ended.');
     case ClipId.walk:

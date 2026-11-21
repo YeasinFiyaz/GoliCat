@@ -18,6 +18,7 @@ class MotionSnapshot {
     required this.lastFixAt,
     required this.lastAccuracy,
     required this.stale,
+    this.stoppedFromFast = false,
   });
 
   final MotionKind kind;
@@ -32,6 +33,9 @@ class MotionSnapshot {
   final DateTime? lastFixAt;
   final double lastAccuracy;
   final bool stale;
+
+  /// This stop came straight after a ride (vehicle halted, not a walk ending).
+  final bool stoppedFromFast;
 
   bool get moving => kind == MotionKind.walking || kind == MotionKind.fast;
 }
@@ -61,6 +65,8 @@ class MotionEngine {
   double _heading = 90;
   int _fastVotes = 0;
   int _slowVotes = 0;
+  bool _stoppedFromFast = false;
+  DateTime? _lastFastAt;
   LocationFix? _lastReliable;
   DateTime? _lastFixAt;
   DateTime? _firstFixAt;
@@ -80,6 +86,8 @@ class MotionEngine {
     _smoothed = null;
     _speed = 0;
     _fastVotes = _slowVotes = 0;
+    _stoppedFromFast = false;
+    _lastFastAt = null;
     _lastReliable = null;
     _lastFixAt = null;
     _firstFixAt = null;
@@ -135,6 +143,7 @@ class MotionEngine {
   }
 
   void _becomeStationary(GeoPoint p, double acc, DateTime since) {
+    _stoppedFromFast = _lastFastAt != null && since.difference(_lastFastAt!) <= t.jamRecentRide;
     _kind = MotionKind.stationary;
     _anchor = p;
     _anchorWeight = 1 / (acc * acc);
@@ -198,11 +207,13 @@ class MotionEngine {
     _smoothed = last.point;
     _kind = _speed > t.fastSpeed ? MotionKind.fast : MotionKind.walking;
     _stationarySince = null;
+    _stoppedFromFast = false;
     _candidates.clear();
     _fastVotes = _slowVotes = 0;
   }
 
   void _whileMoving(LocationFix f) {
+    if (_kind == MotionKind.fast) _lastFastAt = f.time;
     // Position smoothing: trust good fixes more.
     final prev = _smoothed ?? f.point;
     final alpha = (12 / (12 + f.accuracy)).clamp(0.35, 0.85);
@@ -287,6 +298,7 @@ class MotionEngine {
       lastFixAt: _lastFixAt,
       lastAccuracy: _lastAcc,
       stale: stale,
+      stoppedFromFast: _kind == MotionKind.stationary && _stoppedFromFast,
     );
   }
 }

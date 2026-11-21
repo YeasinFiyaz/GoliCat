@@ -96,6 +96,45 @@ void main() {
     });
   });
 
+  group('traffic jam', () {
+    test('a halt right after riding becomes a jam after 20 s; a halt after walking does not', () {
+      final e = ActivityEngine()..start(_t0);
+      // Ride east at 8 m/s for 40 s, then the vehicle stops dead.
+      for (var s = 0; s < 40; s++) {
+        e.addFix(fx(s.toDouble(), s * 8.0, 0, speed: 8));
+      }
+      expect(e.evaluate(_t0.add(const Duration(seconds: 39))).mode, CatMode.fast);
+      // The halt is at s=40. The jam must start 20 s after the real stop (not
+      // after it was detected), and there is never a cha break in traffic.
+      int? jamAt;
+      for (var s = 40; s < 130; s++) {
+        e.addFix(fx(s.toDouble(), 312, 0, speed: 0));
+        final m = e.evaluate(_t0.add(Duration(seconds: s))).mode;
+        expect(m, isNot(CatMode.waiting), reason: 's=$s');
+        if (jamAt == null && m == CatMode.jammed) jamAt = s;
+      }
+      expect(jamAt, isNotNull);
+      expect(jamAt!, inInclusiveRange(58, 75));
+      expect(e.evaluate(_t0.add(const Duration(seconds: 129))).mode, CatMode.jammed);
+      // Moving again ends it.
+      for (var s = 130; s < 145; s++) {
+        e.addFix(fx(s.toDouble(), 312 + (s - 129) * 8.0, 0, speed: 8));
+      }
+      expect(e.evaluate(_t0.add(const Duration(seconds: 144))).mode, isNot(CatMode.jammed));
+
+      // Walking to a halt still gives the cha break.
+      final w = ActivityEngine()..start(_t0);
+      for (var s = 0; s < 40; s++) {
+        w.addFix(fx(s.toDouble(), s * 1.4, 0, speed: 1.4));
+      }
+      for (var s = 40; s < 140; s++) {
+        w.addFix(fx(s.toDouble(), 55, 0, speed: 0));
+        w.evaluate(_t0.add(Duration(seconds: s)));
+      }
+      expect(w.evaluate(_t0.add(const Duration(seconds: 139))).mode, CatMode.waiting);
+    });
+  });
+
   group('office', () {
     const office = Place(center: _o, radiusM: 100);
 
@@ -254,6 +293,8 @@ void main() {
       expect(CatDirector.plan(ClipId.study, CatMode.walking), [ClipId.closeBook, ClipId.walk]);
       expect(CatDirector.plan(ClipId.walk, CatMode.hangingOut), [ClipId.headphonesOn, ClipId.vibe]);
       expect(CatDirector.plan(ClipId.vibe, CatMode.atHome), [ClipId.headphonesOff, ClipId.tuckIn, ClipId.sleep]);
+      expect(CatDirector.plan(ClipId.idle, CatMode.jammed), [ClipId.jamOn, ClipId.jam]);
+      expect(CatDirector.plan(ClipId.jam, CatMode.fast), [ClipId.jamOff, ClipId.fast]);
     });
 
     test('mode changes play through visibly and settle into the right loop', () {

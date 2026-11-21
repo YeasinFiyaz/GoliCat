@@ -14,6 +14,7 @@ void main() {
     const ids = [
       ClipId.sitAtDesk, ClipId.study, ClipId.stuckGag, ClipId.closeBook,
       ClipId.headphonesOn, ClipId.vibe, ClipId.danceGag, ClipId.headphonesOff,
+      ClipId.jamOn, ClipId.jam, ClipId.jamDance, ClipId.jamOff,
     ];
     const cols = 6;
     final recorder = ui.PictureRecorder();

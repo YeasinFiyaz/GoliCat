@@ -48,6 +48,9 @@ headphones and vibes to the music; at home it goes to sleep.
 **Get your trip comic.** Every trip ends with a three-panel comic of the best moments. You can
 save it to your gallery or share it. It never shows a map, route or address.
 
+**Stuck in traffic.** If your bus or rickshaw doesn't move for 20 seconds, the cat puts on its
+headphones and listens to a song until you're moving again.
+
 **Play with the cat.** Tap it. It does something different in each mode.
 
 **Choose your cat.** Tap the face button next to **Start roaming** (or **Choose your cat** in

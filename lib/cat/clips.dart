@@ -24,6 +24,7 @@ enum ClipId {
   tuckIn, sleep, grumpy, wakeUp,
   sitAtDesk, study, stuckGag, closeBook,
   headphonesOn, vibe, danceGag, headphonesOff,
+  jamOn, jam, jamDance, jamOff,
 }
 
 class ClipSpec {
@@ -67,6 +68,10 @@ const clipSpecs = <ClipId, ClipSpec>{
   ClipId.vibe: ClipSpec(null, 'আড্ডা · Hanging out'),
   ClipId.danceGag: ClipSpec(2.4, 'This is the good bit!', gag: true),
   ClipId.headphonesOff: ClipSpec(1.5, 'Headphones off — let\'s go'),
+  ClipId.jamOn: ClipSpec(1.7, 'Traffic jam… headphones on'),
+  ClipId.jam: ClipSpec(null, 'জ্যামে আটকে · Stuck in traffic'),
+  ClipId.jamDance: ClipSpec(2.4, 'This is the good bit!', gag: true),
+  ClipId.jamOff: ClipSpec(1.5, 'Moving again!'),
 };
 
 // ---------------------------------------------------------------------------
@@ -127,10 +132,10 @@ Pose studyPose() => sitPose().set({
       P.scarfFlow: 0.05,
     });
 
-/// Sitting on the hangout bench with headphones on.
-Pose vibePose() => sitPose().set({
-      P.bench: 1, P.pinVis: 0, P.shadow: 0.55,
-      P.rootY: -11,
+/// Sitting with headphones on: on the hangout bench, or on the road in a jam.
+Pose vibePose({bool road = false}) => sitPose().set({
+      P.bench: road ? 0 : 1, P.pinVis: 0, P.shadow: road ? 0.9 : 0.55,
+      P.rootY: road ? 0 : -11,
       P.headphones: 1, P.notes: 1, P.beat: 1,
       P.eyeOpen: 0.35, P.eyeLook: 0.2,
       P.tailX: -12, P.tailY: -6, P.tailEndX: 20, P.tailEndY: 2,
@@ -568,20 +573,66 @@ Pose sampleClip(ClipId id, double t, ClipCtx c) {
       return _vibing(t, c);
 
     case ClipId.danceGag:
-      final p = _vibing(t, c);
-      final on = span(t, 0, 0.2) * (1 - span(t, 2.0, 2.4));
-      final beat = (math.sin(2 * math.pi * t * 2.2)).abs();
+      return _dance(t, c, road: false);
+
+    // ---- traffic jam: same headphones, no bench, sitting on the road -------
+    case ClipId.jamOn:
+      final start = standPose().set({P.pinVis: 0});
+      final seat = vibePose(road: true).set({P.headphones: 0, P.notes: 0, P.beat: 0, P.eyeOpen: 1, P.eyeLook: 0});
+      final sit = easeInOut(span(t, 0.1, 0.6));
+      final p = Pose.lerp(start, seat, sit);
+      final reach = keys(t, [[0, 0], [0.75, 0], [0.95, 1], [1.1, 1], [1.3, 0]]);
+      // A look up the road and a sigh before giving in to the music.
       p.set({
-        P.rootY: -11 - 5 * a * beat * on,
-        P.squash: 0.12 * a * (1 - beat) * on,
-        P.headRot: 0.22 * a * math.sin(2 * math.pi * t * 2.2) * on,
-        P.eyeOpen: 0.05, P.mouth: 0.4 * on,
-        P.earFront: 0.4 * beat * on, P.earBack: 0.4 * beat * on,
-        P.fnA1: 0.05 + 2.2 * on * (0.5 + 0.5 * math.sin(2 * math.pi * t * 2.2)),
-        P.ffA1: 0.05 + 2.2 * on * (0.5 + 0.5 * math.sin(2 * math.pi * t * 2.2 + math.pi)),
-        P.notes: 1 + on, P.exclaim: span(t, 0, 0.1) * (1 - span(t, 0.5, 0.7)),
+        P.headRot: -0.22 * keys(t, [[0, 0], [0.1, 0], [0.3, 1], [0.65, 1], [0.85, 0]]),
+        P.eyeLook: keys(t, [[0, 0], [0.3, 1], [0.65, 1], [0.85, 0]]),
+        P.brow: 0.5 * keys(t, [[0, 0], [0.3, 1], [0.9, 1], [1.1, 0]]),
+        P.mouth: 0.25 * keys(t, [[0, 0], [0.6, 0], [0.7, 1], [0.85, 0]]),
+        P.headphones: span(t, 1.03, 1.1),
+        P.notes: span(t, 1.3, 1.7), P.beat: span(t, 1.3, 1.5),
+        P.eyeOpen: 1 - 0.65 * span(t, 1.35, 1.7),
+        P.scarfPhase: c.time * 3,
+      });
+      p[P.fnA1] += (2.45 - p[P.fnA1]) * reach;
+      p[P.fnA2] += (0.9 - p[P.fnA2]) * reach;
+      return p;
+
+    case ClipId.jam:
+      final p = _vibing(t, c, road: true);
+      // Every so often: a glance up the road. Still not moving. Back to the song.
+      final u = t % 14;
+      final look = keys(u, [[0, 0], [9.0, 0], [9.4, 1], [10.6, 1], [11.0, 0]]);
+      p.set({
+        P.headRot: p[P.headRot] * (1 - look) - 0.2 * look,
+        P.eyeOpen: math.max(p[P.eyeOpen], look),
+        P.eyeLook: p[P.eyeLook] * (1 - look) + 1.0 * look,
+        P.brow: 0.5 * look,
+        P.earFront: p[P.earFront] + 0.4 * look,
+        P.mouth: u > 10.6 && u < 11.0 ? 0.2 : p[P.mouth],
       });
       return p;
+
+    case ClipId.jamDance:
+      return _dance(t, c, road: true);
+
+    case ClipId.jamOff:
+      final p = vibePose(road: true);
+      final reach = keys(t, [[0, 0], [0.1, 1], [0.3, 1], [0.5, 0]]);
+      p.set({
+        P.notes: 1 - span(t, 0, 0.2), P.beat: 1 - span(t, 0, 0.3),
+        P.headphones: 1 - span(t, 0.28, 0.36),
+        P.eyeOpen: 0.35 + 0.65 * span(t, 0.2, 0.4),
+        P.exclaim: span(t, 0.05, 0.15) * (1 - span(t, 0.6, 0.8)),
+      });
+      p[P.fnA1] += (2.45 - p[P.fnA1]) * reach;
+      p[P.fnA2] += (0.9 - p[P.fnA2]) * reach;
+      final up = easeInOut(span(t, 0.55, 1.0));
+      final out = Pose.lerp(p, standPose().set({P.pinVis: 0}), up);
+      out[P.rootY] = -5 * a * math.sin(math.pi * up);
+      out[P.headphones] = p[P.headphones];
+      out[P.notes] = p[P.notes];
+      out[P.exclaim] = p[P.exclaim];
+      return out;
 
     case ClipId.headphonesOff:
       final p = vibePose();
@@ -736,13 +787,32 @@ Pose _studying(double t, ClipCtx c) {
   return p;
 }
 
+/// The tap gag: bounce, paws in the air, extra notes.
+Pose _dance(double t, ClipCtx c, {required bool road}) {
+  final a = c.amp;
+  final p = _vibing(t, c, road: road);
+  final on = span(t, 0, 0.2) * (1 - span(t, 2.0, 2.4));
+  final beat = (math.sin(2 * math.pi * t * 2.2)).abs();
+  p.set({
+    P.rootY: (road ? 0 : -11) - 5 * a * beat * on,
+    P.squash: 0.12 * a * (1 - beat) * on,
+    P.headRot: 0.22 * a * math.sin(2 * math.pi * t * 2.2) * on,
+    P.eyeOpen: 0.05, P.mouth: 0.4 * on,
+    P.earFront: 0.4 * beat * on, P.earBack: 0.4 * beat * on,
+    P.fnA1: 0.05 + 2.2 * on * (0.5 + 0.5 * math.sin(2 * math.pi * t * 2.2)),
+    P.ffA1: 0.05 + 2.2 * on * (0.5 + 0.5 * math.sin(2 * math.pi * t * 2.2 + math.pi)),
+    P.notes: 1 + on, P.exclaim: span(t, 0, 0.1) * (1 - span(t, 0.5, 0.7)),
+  });
+  return p;
+}
+
 /// Head bobbing to the beat, paw tapping, tail swaying; notes drift up.
-Pose _vibing(double t, ClipCtx c) {
+Pose _vibing(double t, ClipCtx c, {bool road = false}) {
   final a = c.amp;
   final bpm = 2.0; // beats per second
   final ph = 2 * math.pi * t * bpm;
   final beat = math.max(0.0, math.sin(ph));
-  final p = vibePose();
+  final p = vibePose(road: road);
   p.set({
     P.headY: -45 - 1.6 * a * beat,
     P.headRot: 0.1 * a * math.sin(ph / 2),
