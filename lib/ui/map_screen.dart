@@ -86,6 +86,75 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
 
   static const _dhaka = LatLng(23.7806, 90.4000);
 
+  /// Where the map opens: the last place it saw this phone, else a saved
+  /// place, else Dhaka for Bangladeshi phones and the world map elsewhere.
+  /// A quick location reading then glides it to where the phone is now.
+  late final ({LatLng center, double zoom}) _opening = () {
+    final s = widget.store;
+    final known = s.lastPosition ??
+        s.place(PlaceKind.home)?.center ??
+        s.place(PlaceKind.office)?.center ??
+        s.customPlaces.firstOrNull?.center;
+    if (known != null) return (center: _ll(known), zoom: 15.5);
+    final country = WidgetsBinding.instance.platformDispatcher.locale.countryCode;
+    if (country == null || country == 'BD') return (center: _dhaka, zoom: 13.5);
+    return (center: const LatLng(20, 0), zoom: 3.0);
+  }();
+
+  /// The phone's own position when no trip is running (for centring and new pins).
+  GeoPoint? _here;
+  GeoPoint? _savedHere;
+  bool _userMoved = false;
+
+  /// Remembers where the phone is (only after it moved a fair way, to save writes).
+  void _remember(GeoPoint p) {
+    final last = _savedHere ?? widget.store.lastPosition;
+    if (last != null && distanceM(last, p) < 300) return;
+    _savedHere = p;
+    widget.store.setLastPosition(p);
+  }
+
+  /// On opening: a quick, permission-free look at where the phone is.
+  Future<void> _locateOnOpen() async {
+    if (trip.active) return;
+    final p = await trip.permissions.quickPosition();
+    if (p == null || !mounted) return;
+    _here = p;
+    _remember(p);
+    if (trip.active || _draft != null || _userMoved) return;
+    _glideTo_(p, zoom: 16, ms: 1100);
+  }
+
+  /// The location button when no trip is running: asks once (after the
+  /// explanation), then goes to where the phone is.
+  Future<void> _findMe() async {
+    if (!widget.store.explainedLocation) {
+      final ok = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        builder: (ctx) => const _WhyLocationSheet(),
+      );
+      if (ok != true) return;
+      widget.store.explainedLocation = true;
+    }
+    final problem = await trip.permissions.ensurePermission();
+    if (!mounted) return;
+    if (problem != LocationProblem.none && problem != LocationProblem.approximate) {
+      _snack('Turn on location for GoliCat to see where you are.');
+      return;
+    }
+    final p = await trip.permissions.quickPosition();
+    if (!mounted) return;
+    if (p == null) {
+      _snack('Still looking for you… try again in a moment.');
+      return;
+    }
+    _here = p;
+    _remember(p);
+    setState(() => _userMoved = false);
+    _glideTo_(p, zoom: 16.5);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -98,7 +167,10 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       final lng = _glideFrom!.longitude + (_glideTo!.longitude - _glideFrom!.longitude) * t;
       _map.move(LatLng(lat, lng), _glideZoomFrom + (_glideZoomTo - _glideZoomFrom) * t);
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _attach().whenComplete(_checkForUpdate));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _locateOnOpen();
+      _attach().whenComplete(_checkForUpdate);
+    });
   }
 
   @override
@@ -212,6 +284,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
 
   void _onTrip() {
     final p = trip.position;
+    if (p != null && trip.active) _remember(p);
     if (p != null && _follow && trip.active && _draft == null) {
       if (_lastCameraTarget == null || distanceM(_lastCameraTarget!, p) > 2) {
         final first = _lastCameraTarget == null;
@@ -387,7 +460,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
 
   void _editPlace(PlaceKind kind, {GeoPoint? at}) {
     final existing = widget.store.place(kind);
-    final center = at ?? existing?.center ?? trip.position;
+    final center = at ?? existing?.center ?? trip.position ?? _here;
     if (center == null) {
       _snack('Long-press the map where your ${kind.label} is, or start roaming and use your current location.');
       return;
@@ -622,8 +695,8 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
         FlutterMap(
           mapController: _map,
           options: MapOptions(
-            initialCenter: _dhaka,
-            initialZoom: 13.5,
+            initialCenter: _opening.center,
+            initialZoom: _opening.zoom,
             minZoom: 3,
             maxZoom: 19.5,
             interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
@@ -631,6 +704,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
             onLongPress: _onLongPress,
             onTap: _onTap,
             onPositionChanged: (cam, hasGesture) {
+              if (hasGesture) _userMoved = true;
               if (hasGesture && _follow) {
                 _glide.stop();
                 setState(() => _follow = false);
@@ -676,7 +750,8 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
             ListenableBuilder(
               listenable: trip,
               builder: (_, _) {
-                final show = trip.active && !_follow && _draft == null;
+                // On a trip: back to the cat. Otherwise: "where am I?".
+                final show = _draft == null && (trip.active ? !_follow : true);
                 return AnimatedSize(
                   duration: const Duration(milliseconds: 220),
                   curve: Curves.easeOutCubic,
@@ -686,8 +761,8 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                           padding: const EdgeInsets.only(right: 4, bottom: 10),
                           child: FloatingActionButton.small(
                             heroTag: 'recenter',
-                            tooltip: 'Back to GoliCat',
-                            onPressed: _recenter,
+                            tooltip: trip.active ? 'Back to GoliCat' : 'My location',
+                            onPressed: trip.active ? _recenter : _findMe,
                             child: const Icon(Icons.my_location),
                           ),
                         )

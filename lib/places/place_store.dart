@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../cat/cat_skin.dart';
 import '../config/app_build.dart';
 import '../config/seed_places.dart';
+import '../core/geo.dart';
 import 'custom_place.dart';
 import '../tracking/place_monitor.dart';
 
@@ -180,6 +181,24 @@ class AppStore extends ChangeNotifier {
   }
 
   double get catScale => const [0.62, 0.8, 1.0][catSize.clamp(0, 2)];
+
+  /// Where the map last saw this phone, so it opens there next time.
+  /// Stored only on this phone, like the places.
+  GeoPoint? get lastPosition {
+    final raw = _prefs.getString('lastPos');
+    if (raw == null) return null;
+    try {
+      final j = jsonDecode(raw);
+      final lat = j['lat'], lng = j['lng'];
+      if (lat is! num || lng is! num || lat.abs() > 90 || lng.abs() > 180) return null;
+      return GeoPoint(lat.toDouble(), lng.toDouble());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setLastPosition(GeoPoint p) => _prefs.setString(
+      'lastPos', jsonEncode({'lat': double.parse(p.lat.toStringAsFixed(5)), 'lng': double.parse(p.lng.toStringAsFixed(5))}));
 
   bool get explainedLocation => _prefs.getBool('explainedLocation') ?? false;
   set explainedLocation(bool v) => _prefs.setBool('explainedLocation', v);

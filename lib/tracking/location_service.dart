@@ -68,6 +68,22 @@ class LocationService implements LocationSource {
     return LocationProblem.none;
   }
 
+  /// One quick, low-power reading for centring the map when the app opens.
+  /// Never asks for permission; null if location is off, denied or slow.
+  Future<GeoPoint?> quickPosition() async {
+    try {
+      if (await checkProblem() != LocationProblem.none) return null;
+      final last = await Geolocator.getLastKnownPosition();
+      if (last != null) return GeoPoint(last.latitude, last.longitude);
+      final p = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low, timeLimit: Duration(seconds: 10)),
+      );
+      return GeoPoint(p.latitude, p.longitude);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Like [ensurePermission] but never asks: for refreshing a banner.
   Future<LocationProblem> checkProblem() async {
     if (!await Geolocator.isLocationServiceEnabled()) return LocationProblem.serviceOff;
