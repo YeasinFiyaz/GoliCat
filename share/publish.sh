@@ -21,6 +21,7 @@ flutter build apk --release --split-per-abi --target-platform android-arm64,andr
 OUT=build/app/outputs/flutter-apk
 mkdir -p build/public && cp $OUT/app-arm64-v8a-release.apk build/public/arm64.apk && cp $OUT/app-armeabi-v7a-release.apk build/public/armv7.apk
 cp build/seed_places.private.bak lib/config/seed_places.dart
+trap - EXIT   # restored; the web build below may clear build/
 
 flutter build web -t lib/viewer_main.dart --release
 find build/web -name "*.map" -delete
