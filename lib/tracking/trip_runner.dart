@@ -99,11 +99,14 @@ class TripRunner {
     _emit();
   }
 
+  int _ticks = 0;
+
   Future<void> _onTick() async {
     final s = session;
     if (s == null) return;
     s.evaluate();
     s.director.update(1.0); // headless: keeps the journal's clip history honest
+    if (_ticks++ % 60 == 0) unawaited(store.markTripAlive(clock()));
     final slow = s.engine.wantsSlowSampling(clock());
     s.engine.motion.slowSampling = slow;
     await location.setSlow(slow);

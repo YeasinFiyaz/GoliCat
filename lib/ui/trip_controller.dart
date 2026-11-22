@@ -75,8 +75,9 @@ class TripController extends ChangeNotifier {
     return log;
   }
 
-  /// Returns the problem (none = started).
-  Future<LocationProblem> start() async {
+  /// Returns the problem (none = started). [resume] carries on the saved
+  /// journal and live share (used after an app update stopped the trip).
+  Future<LocationProblem> start({bool resume = false}) async {
     state = TripState.starting;
     notifyListeners();
     final p = await permissions.ensurePermission();
@@ -90,7 +91,7 @@ class TripController extends ChangeNotifier {
     mirror.reset();
     status = null;
     try {
-      await backend.send('start');
+      await backend.send('start', resume ? {'resume': true} : null);
     } catch (_) {
       // The phone refused to start the service (battery saver, OEM restriction).
       state = TripState.idle;

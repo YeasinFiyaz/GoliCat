@@ -33,6 +33,15 @@ mb() { awk -v b="$(stat -c %s "$1")" 'BEGIN { printf "%.1f", b / 1048576 }'; }
 SHA=$(sha256sum build/public/arm64.apk | cut -d' ' -f1)
 sed -i "s|__APK_ARM64__|$A64|g; s|__APK_ARMV7__|$A7|g; s|__VERSION__|$VER|g; s|__SIZE_ARM64__|$(mb build/public/arm64.apk)|g; s|__SIZE_ARMV7__|$(mb build/public/armv7.apk)|g; s|__SHA_ARM64__|$SHA|g" build/web/get/index.html
 grep -q "__" build/web/get/index.html && { echo "unfilled placeholder"; exit 1; }
+# What the app checks on opening to offer "New version available".
+BUILD=$(grep '^version:' pubspec.yaml | sed 's/.*+//')
+SHA7=$(sha256sum build/public/armv7.apk | cut -d' ' -f1)
+cat > build/web/get/latest.json <<JSON
+{"version": "$VER", "build": $BUILD, "files": {
+  "arm64": {"file": "$A64", "sha256": "$SHA", "size": $(stat -c %s build/public/arm64.apk)},
+  "armv7": {"file": "$A7", "sha256": "$SHA7", "size": $(stat -c %s build/public/armv7.apk)}
+}}
+JSON
 # NO_DEPLOY=1 bash share/publish.sh  → build everything, test it, deploy later.
 [ "${NO_DEPLOY:-}" = 1 ] && { echo "Built $VER (not deployed)"; exit 0; }
 cd share && { ./deploy.sh whoami 2>&1 | grep -q "yeasinfiyaz@gmail.com" || ./deploy.sh whoami 2>&1 | grep -q "yeasinfiyaz@gmail.com"; } || { echo "Wrong Cloudflare login"; exit 1; }

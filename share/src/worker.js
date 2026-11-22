@@ -31,6 +31,12 @@ export default {
     // Download page + APKs: serve the file, count it on the side.
     if (path.startsWith('/get/')) {
       const res = await env.ASSETS.fetch(req);
+      if (path === '/get/latest.json') {
+        // The app's update check: always the current release, never a cached one.
+        const h = new Headers(res.headers);
+        h.set('cache-control', 'no-store');
+        return new Response(res.body, { status: res.status, headers: h });
+      }
       const hit = countable(req, res, path);
       if (hit) ctx.waitUntil(record(env, req, hit).catch(() => {}));
       return res;
