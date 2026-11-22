@@ -25,7 +25,14 @@ enum ClipId {
   sitAtDesk, study, stuckGag, closeBook,
   headphonesOn, vibe, danceGag, headphonesOff,
   jamOn, jam, jamDance, jamOff,
+  // Home life: one activity at a time, about a minute each, in a shuffled order.
+  homeStroll, homeWake, tuckInHome, leaveHome,
+  bath, eat, potty, lounge, gaming,
 }
+
+/// The title for everything the cat does at home: the bar stays calm while
+/// the cat gets on with its day.
+const homeLabel = 'বাসায় · At home';
 
 class ClipSpec {
   const ClipSpec(this.duration, this.label, {this.gag = false});
@@ -56,8 +63,8 @@ const clipSpecs = <ClipId, ClipSpec>{
   ClipId.typing: ClipSpec(null, 'কাজে আছি · At work'),
   ClipId.fishGag: ClipSpec(4.0, 'A fish?! On the screen?!', gag: true),
   ClipId.leaveOffice: ClipSpec(2.4, 'Glasses on the monitor — off we go'),
-  ClipId.tuckIn: ClipSpec(2.3, 'Home. Yaaawn…'),
-  ClipId.sleep: ClipSpec(null, 'বাসায় ঘুমাচ্ছি · Asleep at home'),
+  ClipId.tuckIn: ClipSpec(2.3, homeLabel),
+  ClipId.sleep: ClipSpec(null, homeLabel),
   ClipId.grumpy: ClipSpec(2.0, 'Five more minutes…', gag: true),
   ClipId.wakeUp: ClipSpec(2.4, 'Waking up — big stretch'),
   ClipId.sitAtDesk: ClipSpec(1.8, 'Glasses on, notebook open…'),
@@ -72,6 +79,15 @@ const clipSpecs = <ClipId, ClipSpec>{
   ClipId.jam: ClipSpec(null, 'জ্যামে আটকে · Stuck in traffic'),
   ClipId.jamDance: ClipSpec(2.4, 'This is the good bit!', gag: true),
   ClipId.jamOff: ClipSpec(1.5, 'Moving again!'),
+  ClipId.homeStroll: ClipSpec(1.6, homeLabel),
+  ClipId.homeWake: ClipSpec(2.4, homeLabel),
+  ClipId.tuckInHome: ClipSpec(2.3, homeLabel),
+  ClipId.leaveHome: ClipSpec(1.3, 'Off we go'),
+  ClipId.bath: ClipSpec(null, homeLabel),
+  ClipId.eat: ClipSpec(null, homeLabel),
+  ClipId.potty: ClipSpec(null, homeLabel),
+  ClipId.lounge: ClipSpec(null, homeLabel),
+  ClipId.gaming: ClipSpec(null, homeLabel),
 };
 
 // ---------------------------------------------------------------------------
@@ -670,6 +686,30 @@ Pose sampleClip(ClipId id, double t, ClipCtx c) {
     case ClipId.sleep:
       return _sleeping(t, c);
 
+    // ---- home life ------------------------------------------------------------
+    case ClipId.homeStroll:
+      return _homeStroll(t, c);
+    case ClipId.homeWake:
+      return sampleClip(ClipId.wakeUp, t, c)..[P.home] = 1;
+    case ClipId.tuckInHome:
+      return sampleClip(ClipId.tuckIn, t, c)..[P.home] = 1;
+    case ClipId.leaveHome:
+      final st = standPose().set({P.pinVis: 0, P.home: 1, P.eyeOpen: blink(c.time)});
+      final out = Pose.lerp(st, _walkCycle(t, c), easeInOut(span(t, 0.45, 1.1)));
+      out[P.home] = 1 - easeInOut(span(t, 0.35, 1.2));
+      out[P.rootY] = -5 * a * math.sin(math.pi * span(t, 0.2, 0.6));
+      return out;
+    case ClipId.bath:
+      return _bath(t, c);
+    case ClipId.eat:
+      return _eat(t, c);
+    case ClipId.potty:
+      return _potty(t, c);
+    case ClipId.lounge:
+      return _lounge(t, c);
+    case ClipId.gaming:
+      return _gaming(t, c);
+
     case ClipId.grumpy:
       final p = _sleeping(0, c);
       p.set({
@@ -848,5 +888,231 @@ Pose _sleeping(double t, ClipCtx c) {
     P.dreamKind: (cycle ~/ 3).isEven ? 0 : 1,
     P.mouth: dreamCycle && u > 2 && u < 3 ? 0.2 * (0.5 + 0.5 * math.sin(u * 20)) : 0,
   });
+  return p;
+}
+
+// ---------------------------------------------------------------------------
+// Home life
+
+/// Sitting on the mat at home.
+Pose _homeSit(ClipCtx c) => sitPose().set({
+      P.home: 1, P.pinVis: 0, P.shadow: 0.8,
+      P.eyeOpen: blink(c.time, 4.3),
+      P.scarfPhase: c.time * 2,
+    });
+
+/// Sit down from standing over the first [dur] seconds.
+Pose _settle(Pose seated, double t, {double dur = 0.7}) {
+  if (t >= dur) return seated;
+  final st = standPose().set({P.pinVis: 0, P.home: 1});
+  return Pose.lerp(st, seated, easeInOut(t / dur));
+}
+
+/// Between two home activities: stand, look around, a little hop.
+Pose _homeStroll(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = standPose().set({P.pinVis: 0, P.home: 1});
+  p.set({
+    P.headRot: -0.15 * keys(t, [[0, 0], [0.3, 1], [0.7, 1], [0.9, -0.6], [1.3, -0.6], [1.6, 0]]),
+    P.eyeLook: keys(t, [[0, 0], [0.3, -1], [0.7, -1], [0.9, 0.8], [1.3, 0.8], [1.6, 0]]),
+    P.tailCurl: 0.6 + 0.4 * math.sin(t * 7),
+    P.rootY: -4 * a * math.sin(math.pi * span(t, 0.95, 1.3)),
+    P.earFront: 0.3 * span(t, 0.9, 1.0) * (1 - span(t, 1.2, 1.4)),
+    P.eyeOpen: blink(c.time),
+    P.scarfPhase: c.time * 3,
+  });
+  return p;
+}
+
+/// Bucket and mug bath: scoop, splash over the head, shiver, soap up.
+Pose _bath(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = _homeSit(c).set({
+    P.bucket: easeOut(span(t, 0, 0.5)),
+    P.mug: span(t, 0.5, 0.8),
+    P.fnA1: _hold.a1, P.fnA2: _hold.a2,
+  });
+  if (t < 1.0) {
+    return _settle(p, t)
+      ..[P.bucket] = p[P.bucket]
+      ..[P.mug] = p[P.mug];
+  }
+  final u = (t - 1.0) % 6.0;
+  final scoop = keys(u, [[0, 0], [0.4, 1], [0.8, 1], [1.0, 0]]);
+  final raise = keys(u, [[0, 0], [0.9, 0], [1.3, 1], [1.7, 1], [2.1, 0]]);
+  final shiver = u > 2.5 && u < 3.4;
+  p.set({
+    P.fnA1: _hold.a1 + (0.9 - _hold.a1) * scoop + (2.9 - _hold.a1) * raise,
+    P.fnA2: _hold.a2 + (0.3 - _hold.a2) * scoop + (0.3 - _hold.a2) * raise,
+    P.splash: u >= 1.4 && u < 2.4 ? span(u, 1.4, 2.4) : (u >= 2.5 && u < 3.4 ? 1 + span(u, 2.5, 3.4) : 0),
+    P.eyeOpen: u > 1.35 && u < 5.6 ? 0.0 : blink(c.time, 4.3),
+    P.earFront: -0.4 * span(u, 1.4, 1.6) * (1 - span(u, 3.3, 3.6)),
+    P.earBack: -0.4 * span(u, 1.4, 1.6) * (1 - span(u, 3.3, 3.6)),
+    P.mouth: u > 1.5 && u < 2.2 ? 0.45 : (u > 3.8 && u < 5.4 ? 0.15 : 0),
+    P.headRot: shiver ? 0.22 * a * math.sin(u * 46) : -0.1 * raise,
+    P.squash: shiver ? 0.04 * a * math.sin(u * 46) : 0,
+  });
+  // Far paw lathers the head; the foam stays until the next splash rinses it.
+  final lather = keys(u, [[0, 0], [3.6, 0], [3.9, 1], [5.3, 1], [5.6, 0]]);
+  p[P.ffA1] += (2.4 - p[P.ffA1]) * lather;
+  p[P.ffA2] += (0.9 + 0.25 * math.sin(u * 18) - p[P.ffA2]) * lather;
+  p[P.foam] = u >= 3.7 ? span(u, 3.7, 4.6) : (u < 1.6 && t > 7 ? 1 - span(u, 1.35, 1.6) : 0);
+  return p;
+}
+
+/// Rice and a fish: lean in, nibble, chew with eyes shut. The fish gets smaller.
+Pose _eat(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = _homeSit(c).set({P.plate: easeOut(span(t, 0, 0.5)), P.bite: 0});
+  if (t < 1.0) return _settle(p, t)..[P.plate] = p[P.plate];
+  final cycle = ((t - 1) / 4).floor();
+  final u = (t - 1) % 4;
+  final lean = keys(u, [[0, 0], [0.5, 1], [1.2, 1], [1.6, 0]]);
+  final nib = u > 0.5 && u < 1.2 ? math.max(0.0, math.sin((u - 0.5) * 18)) : 0.0;
+  final chew = u > 1.5 && u < 3.6 ? 0.5 + 0.5 * math.sin(u * 16) : 0.0;
+  p.set({
+    P.bite: clamp01((t - 1) / 55),
+    P.bodyRot: -1.05 + 0.4 * lean, P.bodyX: -1 + 2 * lean,
+    P.headX: 6 + 9 * lean, P.headY: -45 + 21 * lean + 1.5 * nib * a, P.headRot: 0.55 * lean,
+    P.eyeOpen: lean > 0.5 ? 0.6 : (chew > 0 ? 0.05 : blink(c.time, 4.3)),
+    P.mouth: 0.3 * nib + 0.22 * chew,
+    P.earFront: 0.1 * chew, P.earBack: 0.1 * chew,
+    P.tailCurl: 0.3 + 0.35 * math.max(0, math.sin(t * 2.4)),
+  });
+  // Now and then a satisfied burp.
+  if (cycle % 4 == 3) {
+    final burp = keys(u, [[0, 0], [2.4, 0], [2.55, 1], [3.4, 1], [3.6, 0]]);
+    p[P.say] = burp;
+    p[P.sayKind] = 1;
+    p[P.squash] = 0.08 * a * span(u, 2.4, 2.5) * (1 - span(u, 2.5, 2.7));
+    if (burp > 0.5) p[P.mouth] = 0.5;
+  }
+  return p;
+}
+
+/// The litter tray with the newspaper: read, strain, plop, relief.
+Pose _potty(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = sitPose().set({
+    P.home: 1, P.pinVis: 0, P.shadow: 0.6, P.litter: easeOut(span(t, 0, 0.4)),
+    P.rootY: -2,
+    P.fnA1: 1.95, P.fnA2: 1.1, P.ffA1: 1.75, P.ffA2: 1.45,
+    P.paper: span(t, 0.9, 1.2), P.eyeOpen: 0.85, P.eyeLook: 0.5,
+    P.scarfPhase: c.time * 2,
+  });
+  if (t < 1.2) {
+    final st = standPose().set({P.pinVis: 0, P.home: 1});
+    final hop = easeInOut(span(t, 0.2, 0.8));
+    final out = Pose.lerp(st, p, hop);
+    out[P.rootY] = -2 * hop - 9 * a * math.sin(math.pi * hop);
+    out[P.litter] = p[P.litter];
+    out[P.paper] = p[P.paper];
+    return out;
+  }
+  final u = (t - 1.2) % 12;
+  final strain = keys(u, [[0, 0], [4.0, 0], [4.3, 1], [6.3, 1], [6.5, 0]]);
+  final relief = keys(u, [[0, 0], [6.6, 0], [6.8, 1], [8.6, 1], [9.0, 0]]);
+  p.set({
+    P.eyeLook: 0.5 + 0.45 * math.sin(u * 1.6) * (1 - strain) * (1 - relief),
+    P.eyeOpen: 0.85 * (1 - strain) * (1 - relief) + 0.15 * strain + 0.02 * relief,
+    P.brow: -0.9 * strain,
+    P.sweat: strain,
+    P.bodyH: 12.5 + 0.5 * a * strain * math.sin(u * 40),
+    P.earFront: -0.3 * strain + 0.2 * relief, P.earBack: -0.3 * strain + 0.2 * relief,
+    P.mouth: 0.2 * relief,
+    P.stink: span(u, 6.6, 7.4) * (1 - span(u, 11.2, 12)),
+    P.say: keys(u, [[0, 0], [6.5, 0], [6.6, 1], [7.1, 1], [7.3, 0], [7.5, 1], [8.6, 1], [8.9, 0]]),
+    P.sayKind: u < 7.4 ? 2 : 5,
+    P.tailCurl: 0.3 + 0.5 * relief,
+  });
+  return p;
+}
+
+/// Scrolling the phone: thumb flicks, the face lit by the screen, the odd laugh.
+Pose _lounge(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = _homeSit(c).set({
+    P.phone: span(t, 0.5, 0.8),
+    P.fnA1: 1.6, P.fnA2: 1.4,
+    P.headRot: 0.25, P.eyeLook: 0.8, P.eyeOpen: 0.8 * blink(c.time, 5.1),
+  });
+  if (t < 1.0) return _settle(p, t)..[P.phone] = p[P.phone];
+  final cycle = ((t - 1) / 9).floor();
+  final u = (t - 1) % 9;
+  final flick = math.max(0.0, math.sin(u * 5)) * (u < 5 || u > 6.8 ? 1 : 0);
+  p.set({
+    P.scroll: (t * 0.35) + 0.15 * flick,
+    P.fnA2: 1.4 + 0.08 * flick * a,
+    P.tailEndX: 25 + 3 * math.sin(t * 1.3),
+  });
+  if (cycle.isEven) {
+    // Something funny.
+    final laugh = keys(u, [[0, 0], [5.0, 0], [5.2, 1], [6.6, 1], [6.8, 0]]);
+    p.set({
+      P.say: laugh, P.sayKind: 0,
+      P.eyeOpen: laugh > 0.5 ? 0.05 : p[P.eyeOpen],
+      P.mouth: 0.5 * laugh,
+      P.headRot: 0.25 - 0.3 * laugh + 0.06 * a * laugh * math.sin(u * 30),
+      P.bodyH: 12.5 + 0.4 * a * laugh * math.sin(u * 30),
+    });
+  } else {
+    // Something shocking.
+    final shock = keys(u, [[0, 0], [5.0, 0], [5.1, 1], [6.2, 1], [6.5, 0]]);
+    p.set({
+      P.exclaim: shock, P.eyeWide: shock, P.eyeOpen: shock > 0.5 ? 1 : p[P.eyeOpen],
+      P.earFront: 0.4 * shock, P.earBack: 0.4 * shock,
+      P.headRot: 0.25 - 0.2 * shock,
+    });
+  }
+  return p;
+}
+
+/// Gaming on the TV: button mashing, leaning with the game, then a win or a loss.
+Pose _gaming(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = _homeSit(c).set({
+    P.tv: easeOut(span(t, 0, 0.5)),
+    P.gamepad: span(t, 0.7, 1.0),
+    P.fnA1: 1.95, P.fnA2: 1.1, P.ffA1: 1.75, P.ffA2: 1.45,
+    P.eyeOpen: 0.9, P.eyeLook: 0.6, P.brow: -0.5,
+  });
+  if (t < 1.2) {
+    return _settle(p, t, dur: 0.8)
+      ..[P.tv] = p[P.tv]
+      ..[P.gamepad] = p[P.gamepad];
+  }
+  final cycle = ((t - 1.2) / 10).floor();
+  final u = (t - 1.2) % 10;
+  final playing = u < 6 || u > 8.6;
+  final ph = u * 26;
+  final won = hashNoise(cycle, 5) > -0.2;
+  p.set({
+    P.mash: playing ? 0.5 + 0.5 * math.sin(ph) : 0,
+    P.fnA2: 1.1 + (playing ? 0.1 * a * math.sin(ph) : 0),
+    P.ffA2: 1.45 + (playing ? 0.1 * a * math.sin(ph + 1.7) : 0),
+    P.bodyRot: -1.05 + (playing ? 0.07 * a * math.sin(u * 1.9) : 0),
+    P.headRot: playing ? 0.09 * a * math.sin(u * 1.9 + 0.4) : 0,
+    P.mouth: playing && (u % 3) > 1.6 ? 0.12 : 0,
+    P.eyeWide: playing ? 0.5 : 0,
+    P.tailCurl: 0.3 + 0.4 * math.sin(t * 5),
+  });
+  if (!playing) {
+    final r = keys(u, [[6, 0], [6.2, 1], [8.2, 1], [8.6, 0]]);
+    if (won) {
+      p.set({
+        P.win: r, P.say: r, P.sayKind: 3, P.exclaim: span(u, 6, 6.15) * (1 - span(u, 7.0, 7.3)),
+        P.eyeOpen: 0.05, P.mouth: 0.5 * r, P.brow: 0,
+        P.fnA1: 1.95 + 0.7 * r, P.ffA1: 1.75 + 0.75 * r,
+        P.rootY: -4 * a * math.max(0, math.sin((u - 6) * 9)) * r,
+      });
+    } else {
+      p.set({
+        P.win: -r, P.say: r, P.sayKind: 4,
+        P.headRot: 0.4 * r, P.eyeOpen: 0.4, P.brow: 0.8 * r, P.sweat: r,
+        P.earFront: -0.5 * r, P.earBack: -0.5 * r,
+        P.bodyRot: -1.05 + 0.15 * r,
+      });
+    }
+  }
   return p;
 }

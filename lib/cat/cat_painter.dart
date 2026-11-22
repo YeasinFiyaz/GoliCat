@@ -108,6 +108,10 @@ class _CatDraw {
     if (office > 0.01) _officeBack(office);
     if (p[P.bench] > 0.01) _benchBack(p[P.bench]);
     if (p[P.desk] > 0.01) _deskBack(p[P.desk]);
+    if (p[P.bucket] > 0.01) _bucket(p[P.bucket]);
+    if (p[P.plate] > 0.01) _plate(p[P.plate], p[P.bite]);
+    if (p[P.tv] > 0.01) _tv(p[P.tv]);
+    if (p[P.litter] > 0.01) _litterBack(p[P.litter]);
 
     c.save();
     c.translate(p[P.rootX], p[P.rootY]);
@@ -129,6 +133,7 @@ class _CatDraw {
     c.restore();
 
     if (office > 0.01) _officeFront(office);
+    if (p[P.litter] > 0.01) _litterFront(p[P.litter]);
 
     c.save();
     c.translate(p[P.rootX], p[P.rootY]);
@@ -138,6 +143,12 @@ class _CatDraw {
     if (p[P.blanket] < 0.6) _leg(P.fnX, P.fnY, P.fnA1, P.fnA2, p[P.legLen]);
     if (p[P.pencil] > 0.01) _pencil(p[P.pencil]);
     if (p[P.cha] > 0.01) _chaGlass();
+    if (p[P.mug] > 0.01) _mug(p[P.mug]);
+    if (p[P.paper] > 0.01) _newspaper(p[P.paper]);
+    if (p[P.phone] > 0.01) _phone(p[P.phone]);
+    if (p[P.gamepad] > 0.01) _gamepad(p[P.gamepad]);
+    if (p[P.foam] > 0.01) _foam(p[P.foam].clamp(0.0, 1.0));
+    if (p[P.splash] > 0.01) _splash(p[P.splash]);
     if (p[P.glassesFace] > 0.01) _glassesOnFace(p[P.glassesFace]);
     if (p[P.scarfFace] > 0.01) _scarfOverFace(p[P.scarfFace]);
     if (p[P.bubble] > 0.02) _snotBubble();
@@ -1108,11 +1119,16 @@ class _CatDraw {
     for (var x = -38.0; x < 37; x += 4) {
       c.drawLine(Offset(x, -2.6), Offset(x + 2, 0.6), weave);
     }
-    final pillow = _ellipse(const Offset(26, -6.5), 11, 5.5, -0.05, n: 10, jitter: 0.2);
-    _shape(pillow, CatInk.pillow, a);
-    c.drawLine(const Offset(17, -6), const Offset(35, -7), Paint()
-      ..color = const Color(0xFF8FB3D9).withValues(alpha: a)
-      ..strokeWidth = 1);
+    // The pillow is for sleeping: it steps aside while the cat does other things.
+    final busy = [p[P.bucket], p[P.plate], p[P.tv], p[P.litter], p[P.phone]].reduce(math.max).clamp(0.0, 1.0);
+    final pa = a * (1 - busy);
+    if (pa > 0.02) {
+      final pillow = _ellipse(const Offset(26, -6.5), 11, 5.5, -0.05, n: 10, jitter: 0.2);
+      _shape(pillow, CatInk.pillow, pa);
+      c.drawLine(const Offset(17, -6), const Offset(35, -7), Paint()
+        ..color = const Color(0xFF8FB3D9).withValues(alpha: pa)
+        ..strokeWidth = 1);
+    }
   }
 
   void _blanket(double cover, double overHead) {
@@ -1172,6 +1188,278 @@ class _CatDraw {
     }
   }
 
+
+  // ---- home life ------------------------------------------------------------------
+
+  Paint _inkA(double a, [double w = inkW]) => _ink
+    ..color = k.ink.withValues(alpha: a.clamp(0.0, 1.0))
+    ..strokeWidth = w;
+
+  /// Blue plastic bucket (balti) behind the cat.
+  void _bucket(double a) {
+    final body = Path()
+      ..moveTo(21, -17)
+      ..lineTo(39, -17)
+      ..lineTo(37, 0)
+      ..lineTo(23, 0)
+      ..close();
+    c.drawPath(body, _fill(const Color(0xFF2F80C8), a));
+    c.drawPath(body, _inkA(a));
+    c.drawLine(const Offset(22, -12), const Offset(38, -12), Paint()
+      ..color = const Color(0xFF5FA3E0).withValues(alpha: a)
+      ..strokeWidth = 1.2);
+    c.drawOval(Rect.fromCenter(center: const Offset(30, -17), width: 18, height: 3.6), _fill(const Color(0xFF9FD3F0), a));
+    c.drawOval(Rect.fromCenter(center: const Offset(30, -17), width: 18, height: 3.6), _inkA(a, 1.1));
+    c.drawPath(
+        Path()
+          ..moveTo(22, -16)
+          ..quadraticBezierTo(30, -29, 38, -16),
+        _inkA(a, 1.0)..style = PaintingStyle.stroke);
+  }
+
+  /// Plastic mug in the near paw.
+  void _mug(double a) {
+    final paw = _nearPaw;
+    final r = Rect.fromCenter(center: paw + const Offset(1.5, -4.5), width: 6, height: 6.5);
+    final mug = RRect.fromRectAndRadius(r, const Radius.circular(1.2));
+    c.drawRRect(mug, _fill(const Color(0xFFF2C14E), a));
+    c.drawRRect(mug, _inkA(a, 1.1));
+    c.drawArc(Rect.fromCenter(center: r.centerRight + const Offset(0.6, 0), width: 4, height: 4.4), -1.4, 2.8, false,
+        _inkA(a, 1.1)..style = PaintingStyle.stroke);
+    c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _fill(k.paw, a));
+    c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _inkA(a));
+  }
+
+  /// Water thrown over the head (0..1), then shaken off (1..2).
+  void _splash(double s) {
+    const water = Color(0xFF7CC4E8);
+    void drop(Offset at, double sz, double a) {
+      final d = Path()
+        ..moveTo(at.dx, at.dy - 2.4 * sz)
+        ..quadraticBezierTo(at.dx + 1.8 * sz, at.dy + 0.6 * sz, at.dx, at.dy + 1.2 * sz)
+        ..quadraticBezierTo(at.dx - 1.8 * sz, at.dy + 0.6 * sz, at.dx, at.dy - 2.4 * sz)
+        ..close();
+      c.drawPath(d, _fill(water, a));
+      c.drawPath(d, _inkA(a, 0.7));
+    }
+
+    final h = _head;
+    if (s <= 1) {
+      final a = math.sin(math.pi * s);
+      for (var i = 0; i < 7; i++) {
+        drop(h + Offset(-11 + i * 3.6, -30 + 26 * s + (i.isOdd ? 3 : 0)), 1.0, a);
+      }
+    } else {
+      final u = s - 1;
+      for (var i = 0; i < 8; i++) {
+        final ang = 2 * math.pi * i / 8 + 0.3;
+        drop(h + Offset(math.cos(ang), math.sin(ang)) * (12 + 14 * u), 0.8, 1 - u);
+      }
+    }
+  }
+
+  /// Soap foam on top of the head.
+  void _foam(double a) {
+    for (final (x, y, r) in [(-7.0, -14.0, 3.4), (-2.0, -17.0, 3.8), (4.0, -16.0, 3.3), (-4.0, -11.0, 2.6), (8.0, -12.5, 2.4)]) {
+      final at = _hp(x, y);
+      c.drawCircle(at, r * a, _fill(const Color(0xFFFFFFFF), a));
+      c.drawCircle(at, r * a, _inkA(a * 0.6, 0.7)..style = PaintingStyle.stroke);
+    }
+  }
+
+  /// A plate of rice and a fish on the mat; the fish turns into bones as [bite] goes to 1.
+  void _plate(double a, double bite) {
+    c.save();
+    c.translate(-4, 0);
+    c.scale(1.25);
+    c.drawOval(Rect.fromCenter(center: const Offset(27, -1.6), width: 24, height: 5.2), _fill(const Color(0xFFFFFFFF), a));
+    c.drawOval(Rect.fromCenter(center: const Offset(27, -1.6), width: 24, height: 5.2), _inkA(a, 1.1));
+    c.drawOval(Rect.fromCenter(center: const Offset(27, -1.9), width: 18, height: 3.2),
+        Paint()
+          ..color = const Color(0xFF5B8FD0).withValues(alpha: a)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8);
+    // Rice.
+    final rice = _ellipse(const Offset(22.5, -3.6), 5.2, 2.6, 0, n: 9, jitter: 0.25);
+    _shape(rice, const Color(0xFFFFFCF2), a);
+    // Fish (eaten from the tail end).
+    final fishLen = 10 * (1 - 0.8 * bite);
+    final head = const Offset(35, -4.2);
+    if (bite < 0.95) {
+      final body = Path()
+        ..moveTo(head.dx, head.dy)
+        ..quadraticBezierTo(head.dx - fishLen * 0.5, head.dy - 2.8, head.dx - fishLen, head.dy)
+        ..quadraticBezierTo(head.dx - fishLen * 0.5, head.dy + 2.4, head.dx, head.dy)
+        ..close();
+      c.drawPath(body, _fill(const Color(0xFFF29A3E), a));
+      c.drawPath(body, _inkA(a, 1.0));
+    }
+    // Bones show where the fish was eaten.
+    final bones = Paint()
+      ..color = k.ink.withValues(alpha: 0.8 * a)
+      ..strokeWidth = 0.7
+      ..strokeCap = StrokeCap.round;
+    final boneEnd = head.dx - 10;
+    final boneStart = head.dx - fishLen;
+    if (boneStart - boneEnd > 0.5) {
+      c.drawLine(Offset(boneEnd, head.dy), Offset(boneStart, head.dy), bones);
+      for (var x = boneEnd + 1.2; x < boneStart; x += 1.8) {
+        c.drawLine(Offset(x, head.dy - 1.4), Offset(x, head.dy + 1.4), bones);
+      }
+      c.drawPath(
+          Path()
+            ..moveTo(boneEnd, head.dy)
+            ..lineTo(boneEnd - 2, head.dy - 1.8)
+            ..moveTo(boneEnd, head.dy)
+            ..lineTo(boneEnd - 2, head.dy + 1.8),
+          bones..style = PaintingStyle.stroke);
+    }
+    if (bite >= 0.95) {
+      c.drawCircle(head + const Offset(-1.6, 0), 1.6, _fill(const Color(0xFFF29A3E), a));
+      c.drawCircle(head + const Offset(-1.6, 0), 1.6, _inkA(a, 0.8)..style = PaintingStyle.stroke);
+    }
+    c.drawCircle(head + const Offset(-1.8, -0.6), 0.5, _fill(k.ink, a));
+    c.restore();
+  }
+
+  /// Litter tray: back wall behind the cat.
+  void _litterBack(double a) {
+    final back = RRect.fromRectAndRadius(const Rect.fromLTWH(-26, -11, 50, 11), const Radius.circular(2.5));
+    c.drawRRect(back, _fill(const Color(0xFF5FA79C), a));
+    c.drawRRect(back, _inkA(a));
+    c.drawRect(const Rect.fromLTWH(-24, -8.5, 46, 3), _fill(const Color(0xFFE6D29E), a));
+  }
+
+  /// Litter tray: front lip in front of the cat.
+  void _litterFront(double a) {
+    final front = RRect.fromRectAndRadius(const Rect.fromLTWH(-28, -6.5, 54, 6.5), const Radius.circular(2.5));
+    c.drawRRect(front, _fill(const Color(0xFF6FBAAE), a));
+    c.drawRRect(front, _inkA(a));
+  }
+
+  /// Newspaper held open in both paws.
+  void _newspaper(double a) {
+    final center = Offset.lerp(_nearPaw, _farPaw, 0.5)! + const Offset(1, -6);
+    c.save();
+    c.translate(center.dx, center.dy);
+    c.rotate(0.06);
+    const rect = Rect.fromLTWH(-12, -8.5, 24, 17);
+    c.drawRect(rect, _fill(const Color(0xFFF4F1EA), a));
+    c.drawRect(const Rect.fromLTWH(-12, -8.5, 24, 3), _fill(const Color(0xFF3A3A3A), a));
+    c.drawLine(const Offset(0, -5.5), const Offset(0, 8.5), Paint()
+      ..color = const Color(0xFFCFC8B8).withValues(alpha: a)
+      ..strokeWidth = 0.8);
+    c.drawRect(const Rect.fromLTWH(-10.5, -4, 9, 5.5), _fill(const Color(0xFFB9C7D6), a));
+    final lines = Paint()
+      ..color = const Color(0xFF9A948A).withValues(alpha: a)
+      ..strokeWidth = 0.8;
+    for (var y = -3.5; y < 7.5; y += 1.8) {
+      c.drawLine(Offset(1.5, y), const Offset(10.5, 0) + Offset(0, y), lines);
+    }
+    for (var y = 3.0; y < 7.5; y += 1.8) {
+      c.drawLine(Offset(-10.5, y), Offset(-1.5, y), lines);
+    }
+    c.drawRect(rect, _inkA(a, 1.1)..style = PaintingStyle.stroke);
+    c.restore();
+    for (final paw in [_nearPaw, _farPaw]) {
+      c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _fill(k.paw, a));
+      c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _inkA(a));
+    }
+  }
+
+  /// Phone in the near paw, screen lighting the face.
+  void _phone(double a) {
+    final paw = _nearPaw;
+    final glow = Paint()..color = const Color(0xFF9FE0FF).withValues(alpha: 0.18 * a);
+    c.drawOval(Rect.fromCenter(center: _hp(9, 2), width: 18, height: 14), glow);
+    c.save();
+    c.translate(paw.dx + 2, paw.dy - 4);
+    c.rotate(-0.45);
+    final body = RRect.fromRectAndRadius(const Rect.fromLTWH(-3, -5, 6, 10), const Radius.circular(1.3));
+    c.drawRRect(body, _fill(const Color(0xFF26282E), a));
+    c.drawRRect(body, _inkA(a, 1.0));
+    const screen = Rect.fromLTWH(-2.2, -4.1, 4.4, 8.2);
+    c.drawRect(screen, _fill(const Color(0xFFBFEAFF), a));
+    c.save();
+    c.clipRect(screen);
+    final off = (p[P.scroll] % 1) * 3.2;
+    for (var i = -1; i < 5; i++) {
+      final y = -4.1 + i * 3.2 - off + 3.2;
+      c.drawRect(Rect.fromLTWH(-1.7, y, 1.4, 1.4), _fill(const Color(0xFFF2A65A), a));
+      c.drawLine(Offset(0.2, y + 0.4), Offset(1.8, y + 0.4), Paint()
+        ..color = const Color(0xFF5E7787).withValues(alpha: a)
+        ..strokeWidth = 0.6);
+    }
+    c.restore();
+    c.restore();
+    c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _fill(k.paw, a));
+    c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _inkA(a));
+  }
+
+  /// TV on a low stand, playing a little platform game.
+  void _tv(double a) {
+    final stand = RRect.fromRectAndRadius(const Rect.fromLTWH(33, -8, 28, 8), const Radius.circular(1.2));
+    c.drawRRect(stand, _fill(CatInk.wood, a));
+    c.drawRRect(stand, _inkA(a, 1.1));
+    final frame = RRect.fromRectAndRadius(const Rect.fromLTWH(32, -33, 30, 23), const Radius.circular(2));
+    c.drawRRect(frame, _fill(const Color(0xFF26282E), a));
+    c.drawRRect(frame, _inkA(a));
+    c.drawRect(const Rect.fromLTWH(45, -10, 4, 2), _fill(const Color(0xFF26282E), a));
+    const screen = Rect.fromLTWH(34.2, -31, 25.6, 18.6);
+    final win = p[P.win];
+    final base = Color.lerp(const Color(0xFF233A5E), win >= 0 ? const Color(0xFFFFD166) : const Color(0xFFD7263D), win.abs() * 0.75)!;
+    c.drawRect(screen, _fill(base, a));
+    c.save();
+    c.clipRect(screen);
+    final t = p[P.time];
+    // Ground, scrolling blocks and a jumping hero.
+    c.drawRect(Rect.fromLTWH(screen.left, screen.bottom - 3, screen.width, 3), _fill(const Color(0xFF3FAE6A), a));
+    for (var i = 0; i < 3; i++) {
+      final x = screen.right - ((t * 14 + i * 10) % (screen.width + 6));
+      c.drawRect(Rect.fromLTWH(x, screen.bottom - 6, 3, 3), _fill(const Color(0xFFF2A65A), a));
+    }
+    final jump = (math.sin(t * 7)).abs() * 6 * (p[P.mash] > 0 ? 1 : 0.2);
+    c.drawRect(Rect.fromLTWH(screen.left + 6, screen.bottom - 7 - jump, 3, 4), _fill(k.scarf, a));
+    if (win.abs() > 0.3) {
+      for (var i = 0; i < 6; i++) {
+        final ang = i * math.pi / 3 + t * 2;
+        c.drawCircle(screen.center + Offset(math.cos(ang), math.sin(ang)) * 6, 1.2, _fill(const Color(0xFFFFFFFF), a * win.abs()));
+      }
+    }
+    c.restore();
+    // Light from the screen on the floor.
+    c.drawOval(Rect.fromCenter(center: const Offset(30, -1), width: 26, height: 4),
+        _fill(win >= 0 ? const Color(0xFF9FD3F0) : const Color(0xFFF7A6A0), 0.25 * a));
+  }
+
+  /// Gamepad held in both paws; the buttons light up while mashing.
+  void _gamepad(double a) {
+    final center = Offset.lerp(_nearPaw, _farPaw, 0.5)! + const Offset(1, -2);
+    c.save();
+    c.translate(center.dx, center.dy);
+    final body = Path()
+      ..moveTo(-6, -2)
+      ..lineTo(6, -2)
+      ..quadraticBezierTo(9, -2, 8.5, 2.5)
+      ..quadraticBezierTo(7, 4, 4.5, 1.5)
+      ..lineTo(-4.5, 1.5)
+      ..quadraticBezierTo(-7, 4, -8.5, 2.5)
+      ..quadraticBezierTo(-9, -2, -6, -2)
+      ..close();
+    c.drawPath(body, _fill(const Color(0xFF3A3F47), a));
+    c.drawPath(body, _inkA(a, 1.1));
+    final m = p[P.mash];
+    c.drawCircle(const Offset(4.2, -0.4), 0.9, _fill(Color.lerp(const Color(0xFFD7263D), const Color(0xFFFFE066), m)!, a));
+    c.drawCircle(const Offset(5.9, 0.7), 0.9, _fill(Color.lerp(const Color(0xFF2F80C8), const Color(0xFFFFE066), 1 - m)!, a));
+    c.drawRect(const Rect.fromLTWH(-5.6, -0.6, 3.2, 1), _fill(const Color(0xFFBFC5CC), a));
+    c.drawRect(const Rect.fromLTWH(-4.5, -1.7, 1, 3.2), _fill(const Color(0xFFBFC5CC), a));
+    c.restore();
+    for (final paw in [_nearPaw, _farPaw]) {
+      c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _fill(k.paw, a));
+      c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _inkA(a));
+    }
+  }
+
   // ---- marks (drawn un-mirrored so text reads correctly) ---------------------------
 
   void _marks() {
@@ -1213,6 +1501,30 @@ class _CatDraw {
         final sway = math.sin(u * math.pi * 2 + i) * 3;
         final at = world(_head + Offset(9 + i * 3 + sway, -16 - u * 22));
         _note(at, 0.75 + u * 0.5, cols[i], a.clamp(0.0, 1.0) * math.sin(math.pi * u), i.isOdd);
+      }
+    }
+    if (p[P.say] > 0.02) {
+      final i = p[P.sayKind].round().clamp(0, homeSayings.length - 1);
+      final at = headTop + Offset(16 * f, -2);
+      _text(homeSayings[i], at, 7.5, k.ink, p[P.say], box: true);
+    }
+    if (p[P.stink] > 0.02) {
+      final a = p[P.stink].clamp(0.0, 1.0);
+      final t = p[P.time];
+      final sp = Paint()
+        ..color = const Color(0xFF8DB84A).withValues(alpha: 0.8 * a)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.3
+        ..strokeCap = StrokeCap.round;
+      for (var i = 0; i < 3; i++) {
+        final u = ((t * 0.4 + i / 3) % 1);
+        final x0 = (-18.0 + i * 7) * f;
+        final y0 = -10.0 - u * 16;
+        final path = Path()..moveTo(x0, y0);
+        for (var j = 1; j <= 4; j++) {
+          path.lineTo(x0 + math.sin(t * 3 + j + i) * 1.6, y0 - j * 2.6);
+        }
+        c.drawPath(path, sp..color = const Color(0xFF8DB84A).withValues(alpha: 0.8 * a * math.sin(math.pi * u)));
       }
     }
     if (p[P.zzz] > 0.02) {

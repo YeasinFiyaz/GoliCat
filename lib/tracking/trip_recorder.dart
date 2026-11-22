@@ -131,6 +131,16 @@ List<ComicPanel> comicFor(TripLog log) {
     pause = const ComicPanel(ClipId.skid, 0.9, 'Skrrrt! Scarf in the face.');
   } else if (clips.contains(ClipId.batPin)) {
     pause = const ComicPanel(ClipId.batPin, 0.5, 'Bopped its own map pin.');
+  } else if (clips.contains(ClipId.potty)) {
+    pause = const ComicPanel(ClipId.potty, 7.9, 'Important business. With the newspaper.');
+  } else if (clips.contains(ClipId.gaming)) {
+    pause = const ComicPanel(ClipId.gaming, 7.4, 'One more game. Just one.');
+  } else if (clips.contains(ClipId.bath)) {
+    pause = const ComicPanel(ClipId.bath, 2.0, 'Bucket bath. Brrr!');
+  } else if (clips.contains(ClipId.eat)) {
+    pause = const ComicPanel(ClipId.eat, 1.8, 'Rice and fish. Nom.');
+  } else if (clips.contains(ClipId.lounge)) {
+    pause = const ComicPanel(ClipId.lounge, 6.2, 'Scrolling. Ha ha.');
   } else if (clips.contains(ClipId.grumpy)) {
     pause = const ComicPanel(ClipId.grumpy, 1.4, 'Five more minutes…');
   }
@@ -143,8 +153,22 @@ List<ComicPanel> comicFor(TripLog log) {
     case ClipId.hopOnChair:
     case ClipId.fishGag:
       ending = const ComicPanel(ClipId.typing, 4.74, 'কাজে আছি. ENTER!');
+    case ClipId.bath:
+      ending = const ComicPanel(ClipId.bath, 5.0, 'Bucket bath done. Fresh!');
+    case ClipId.eat:
+      ending = const ComicPanel(ClipId.eat, 20.0, 'Bhaat and fish. Burp.');
+    case ClipId.potty:
+      ending = const ComicPanel(ClipId.potty, 9.0, 'Ahh. Back to the news.');
+    case ClipId.lounge:
+      ending = const ComicPanel(ClipId.lounge, 6.2, 'Home. Scrolling. Ha ha.');
+    case ClipId.gaming:
+      ending = const ComicPanel(ClipId.gaming, 4.0, 'Home. One more game…');
+    case ClipId.homeStroll:
+    case ClipId.homeWake:
+      ending = const ComicPanel(ClipId.homeStroll, 0.5, 'Home sweet home.');
     case ClipId.sleep:
     case ClipId.tuckIn:
+    case ClipId.tuckInHome:
     case ClipId.grumpy:
       ending = const ComicPanel(ClipId.sleep, 1.6, 'Home. Under the kantha. Zzz…');
     case ClipId.tea:
@@ -172,6 +196,7 @@ List<ComicPanel> comicFor(TripLog log) {
     case ClipId.stashTea:
     case ClipId.leaveOffice:
     case ClipId.wakeUp:
+    case ClipId.leaveHome:
       ending = const ComicPanel(ClipId.walk, 0.3, 'Still trotting. Trip over!');
     default:
       ending = const ComicPanel(ClipId.idle, 0.2, 'Journey\'s end.');

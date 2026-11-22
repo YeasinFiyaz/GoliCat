@@ -29,7 +29,17 @@ enum P {
   // Study desk (education) and the hangout bench.
   desk, pencil, write, lamp,
   bench, headphones, notes, beat,
+  // Home life: bucket bath, rice and fish, the litter tray, the phone, the game.
+  bucket, mug, splash, foam,
+  plate, bite,
+  litter, paper, stink,
+  phone, scroll,
+  tv, gamepad, mash, win,
+  say, sayKind,
 }
+
+/// Words the cat can say at home ([P.sayKind] indexes this list).
+const homeSayings = ['ha ha', 'burp!', 'plop', 'yesss!', 'nooo', 'ahh…'];
 
 class Pose {
   Pose._(this.v);

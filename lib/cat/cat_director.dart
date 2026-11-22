@@ -10,9 +10,44 @@ import 'pose.dart';
 ///
 /// It knows nothing about GPS or maps, so it can be tested and demoed alone.
 class CatDirector {
-  CatDirector({this.reducedMotion = false});
+  CatDirector({this.reducedMotion = false, DateTime Function()? clock}) : clock = clock ?? DateTime.now;
 
   bool reducedMotion;
+
+  /// Wall clock: picks the home activity, so every screen showing this cat
+  /// (the app, the trip service, a live-share viewer) agrees on it.
+  final DateTime Function() clock;
+
+  /// Home activities other than sleeping.
+  static const homeLife = [ClipId.bath, ClipId.eat, ClipId.potty, ClipId.lounge, ClipId.gaming];
+  static const homeActivities = [ClipId.sleep, ...homeLife];
+  static bool isHomeLife(ClipId c) => homeLife.contains(c);
+
+  /// What the cat does at home during the minute containing [now]: a shuffled
+  /// order that never repeats an activity twice in a row. At night it sleeps.
+  static ClipId homeActivityAt(DateTime now) {
+    if (now.hour >= 23 || now.hour < 7) return ClipId.sleep;
+    final slot = now.millisecondsSinceEpoch ~/ 60000;
+    final n = homeActivities.length;
+    return _homeOrder(slot ~/ n)[slot % n];
+  }
+
+  static List<ClipId> _homeOrder(int block) {
+    List<ClipId> shuffled(int b) => [...homeActivities]..shuffle(math.Random(b * 7919 + 13));
+    final order = shuffled(block);
+    if (order.first == shuffled(block - 1).last) {
+      final first = order[0];
+      order[0] = order[1];
+      order[1] = first;
+    }
+    return order;
+  }
+
+  /// Seconds an activity has to run before the minute can change it.
+  static const homeMinStay = 20.0;
+
+  ClipId _target() => _mode == CatMode.atHome ? homeActivityAt(clock()) : loopFor(_mode);
+  double _boop = 99;
 
   CatMode _mode = CatMode.starting;
   ClipId _clip = ClipId.idle;
@@ -22,7 +57,7 @@ class CatDirector {
 
   Pose? _blendFrom;
   double _blendT = 1;
-  static const _blendDur = 0.22;
+  double _blendDur = 0.22;
 
   double _facing = 1;
   double _facingTarget = 1;
@@ -65,12 +100,18 @@ class CatDirector {
         ClipId.sitAtDesk || ClipId.study || ClipId.stuckGag || ClipId.closeBook => ClipId.study,
         ClipId.headphonesOn || ClipId.vibe || ClipId.danceGag || ClipId.headphonesOff => ClipId.vibe,
         ClipId.jamOn || ClipId.jam || ClipId.jamDance || ClipId.jamOff => ClipId.jam,
+        ClipId.tuckInHome => ClipId.sleep,
+        ClipId.homeStroll || ClipId.homeWake => ClipId.lounge,
+        ClipId.leaveHome => ClipId.walk,
+        ClipId.bath || ClipId.eat || ClipId.potty || ClipId.lounge || ClipId.gaming => c,
       };
 
   /// The transition plan from the current base loop into [target]'s loop.
-  static List<ClipId> plan(ClipId fromBase, CatMode target) {
-    final to = loopFor(target);
+  /// At home, [home] names the activity to go to (sleep when not given).
+  static List<ClipId> plan(ClipId fromBase, CatMode target, {ClipId? home}) {
+    final to = target == CatMode.atHome ? (home ?? ClipId.sleep) : loopFor(target);
     if (fromBase == to) return [to];
+    final staying = target == CatMode.atHome && (fromBase == ClipId.sleep || isHomeLife(fromBase));
     final out = <ClipId>[];
     // Leaving.
     switch (fromBase) {
@@ -81,9 +122,11 @@ class CatDirector {
       case ClipId.typing:
         out.add(ClipId.leaveOffice);
       case ClipId.sleep:
-        out.add(ClipId.wakeUp);
+        out.add(staying ? ClipId.homeWake : ClipId.wakeUp);
       case ClipId.study:
         out.add(ClipId.closeBook);
+      case ClipId.bath || ClipId.eat || ClipId.potty || ClipId.lounge || ClipId.gaming:
+        out.add(staying ? ClipId.homeStroll : ClipId.leaveHome);
       case ClipId.vibe:
         out.add(ClipId.headphonesOff);
       case ClipId.jam:
@@ -102,7 +145,9 @@ class CatDirector {
       case ClipId.typing:
         out.add(ClipId.hopOnChair);
       case ClipId.sleep:
-        out.add(ClipId.tuckIn);
+        out.add(staying ? ClipId.tuckInHome : ClipId.tuckIn);
+      case ClipId.bath || ClipId.eat || ClipId.potty || ClipId.lounge || ClipId.gaming:
+        if (!staying) out.add(ClipId.homeStroll);
       case ClipId.study:
         out.add(ClipId.sitAtDesk);
       case ClipId.vibe:
@@ -137,7 +182,7 @@ class CatDirector {
   void _replan() {
     _queue
       ..clear()
-      ..addAll(plan(baseOf(_clip), _mode));
+      ..addAll(plan(baseOf(_clip), _mode, home: _target()));
     _next();
   }
 
@@ -151,6 +196,8 @@ class CatDirector {
   void _start(ClipId c) {
     _blendFrom = _last.copy();
     _blendT = 0;
+    // Home changes glide a little slower so props fade instead of popping.
+    _blendDur = homeActivities.contains(c) || c == ClipId.homeStroll || c == ClipId.leaveHome || c == ClipId.tuckInHome ? 0.6 : 0.22;
     _clip = c;
     _clipT = 0;
     history.add(c);
@@ -205,6 +252,10 @@ class CatDirector {
           ..add(ClipId.jam);
         _start(ClipId.jamDance);
         return true;
+      case ClipId.bath || ClipId.eat || ClipId.potty || ClipId.lounge || ClipId.gaming:
+        if (_boop < 1.1) return false;
+        _boop = 0; // startled: a hop and a "!" without leaving what it's doing
+        return true;
       default:
         return false;
     }
@@ -214,8 +265,8 @@ class CatDirector {
   void snapTo(CatMode m) {
     _mode = m;
     _queue.clear();
-    _clip = loopFor(m);
-    _clipT = 0;
+    _clip = _target();
+    _clipT = m == CatMode.atHome ? 1.5 : 0; // props already out
     _blendT = 1;
     _blendFrom = null;
     history.add(_clip);
@@ -228,12 +279,19 @@ class CatDirector {
     final spec = clipSpecs[_clip]!;
     if (!spec.loops && _clipT >= spec.duration!) {
       // If the situation changed while this one-shot played, plan afresh.
-      if (_queue.isEmpty || _queue.last != loopFor(_mode)) {
+      if (_queue.isEmpty || _queue.last != _target()) {
         _queue
           ..clear()
-          ..addAll(plan(baseOf(_clip), _mode));
+          ..addAll(plan(baseOf(_clip), _mode, home: _target()));
       }
       _next();
+    } else if (_mode == CatMode.atHome && _queue.isEmpty && spec.loops && _clipT > homeMinStay) {
+      // A new minute at home: on to the next activity.
+      final want = homeActivityAt(clock());
+      if (want != _clip && homeActivities.contains(_clip)) {
+        _queue.addAll(plan(_clip, CatMode.atHome, home: want));
+        _next();
+      }
     }
     final forceRight = _clip == ClipId.typing ||
         _clip == ClipId.hopOnChair ||
@@ -242,7 +300,9 @@ class CatDirector {
         baseOf(_clip) == ClipId.sleep ||
         _clip == ClipId.wakeUp && _clipT < 1.8 ||
         baseOf(_clip) == ClipId.study && !(_clip == ClipId.closeBook && _clipT > 1.0) ||
-        baseOf(_clip) == ClipId.vibe && !(_clip == ClipId.headphonesOff && _clipT > 0.9);
+        baseOf(_clip) == ClipId.vibe && !(_clip == ClipId.headphonesOff && _clipT > 0.9) ||
+        isHomeLife(_clip) || _clip == ClipId.homeStroll || _clip == ClipId.homeWake ||
+        _clip == ClipId.leaveHome && _clipT < 0.5;
     final target = forceRight ? 1.0 : _facingTarget;
     final step = dt / 0.22 * 2;
     _facing += (target - _facing).clamp(-step, step);
@@ -252,6 +312,17 @@ class CatDirector {
     if (_blendFrom != null && _blendT < 1) {
       _blendT = math.min(1, _blendT + dt / _blendDur);
       pose = Pose.lerp(_blendFrom!, pose, easeInOut(_blendT));
+    }
+    if (_boop < 1.1) {
+      _boop += dt;
+      final b = _boop;
+      final a = reducedMotion ? 0.35 : 1.0;
+      pose[P.exclaim] = math.max(pose[P.exclaim], span(b, 0, 0.08) * (1 - span(b, 0.7, 1.0)));
+      pose[P.eyeWide] = math.max(pose[P.eyeWide], 1 - span(b, 0.6, 1.0));
+      pose[P.eyeOpen] = math.max(pose[P.eyeOpen], 1 - span(b, 0.6, 1.0));
+      pose[P.rootY] += -6 * a * math.sin(math.pi * span(b, 0, 0.45));
+      pose[P.earFront] += 0.5 * (1 - span(b, 0.5, 1.0));
+      pose[P.earBack] += 0.5 * (1 - span(b, 0.5, 1.0));
     }
     pose[P.facing] = _facing;
     pose[P.time] = _time;
