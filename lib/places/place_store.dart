@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../cat/cat_skin.dart';
+import '../config/app_build.dart';
 import '../config/seed_places.dart';
+import 'custom_place.dart';
 import '../tracking/place_monitor.dart';
 
 /// The kinds of place the cat reacts to. Adding one: a line here, a monitor
@@ -55,6 +57,8 @@ class AppStore extends ChangeNotifier {
   static Future<AppStore> load() async {
     final prefs = await SharedPreferences.getInstance();
     final s = AppStore._(prefs);
+    // Anything saved before this start? (Checked before the seed below adds some.)
+    final hadData = prefs.getKeys().any((k) => k.startsWith('place_') || k == 'catSkin' || k == 'customPlaces');
     activeCatSkin.value = CatSkin.byId(prefs.getString('catSkin'));
     // Public builds (--dart-define=PUBLIC_BUILD=true) never carry anyone's places.
     const publicBuild = bool.fromEnvironment('PUBLIC_BUILD');
@@ -63,8 +67,76 @@ class AppStore extends ChangeNotifier {
       if (seedHome != null) await s.setPlace(PlaceKind.home, Place(center: seedHome!, radiusM: 60));
       await prefs.setBool('seeded', true);
     }
+    await s._upgrade(hadData);
     return s;
   }
+
+  // ---- updates ---------------------------------------------------------------
+
+  /// Layout of the saved data. Raise it with a step in [_upgrade] whenever a
+  /// release changes what is stored, so an update converts old data in place
+  /// and nobody has to uninstall or set things up again.
+  static const dataVersion = 2;
+
+  /// The build this phone ran before the current one, when this start is the
+  /// first one after an update (null otherwise).
+  int? updatedFrom;
+
+  Future<void> _upgrade(bool hadData) async {
+    final had = _prefs.getInt('dataVersion') ?? 1;
+    if (had < 2) {
+      // 1.0.4: custom places arrive under their own key. Nothing older needs
+      // converting, and nothing saved is ever deleted by an update: anything
+      // unreadable is simply skipped when read.
+    }
+    if (had != dataVersion) await _prefs.setInt('dataVersion', dataVersion);
+    final lastBuild = _prefs.getInt('lastBuild');
+    if (lastBuild != null && lastBuild < appBuild) updatedFrom = lastBuild;
+    if (lastBuild == null && had == 1 && hadData) {
+      updatedFrom = 0; // came from a build older than this tracking
+    }
+    if (lastBuild != appBuild) await _prefs.setInt('lastBuild', appBuild);
+  }
+
+  // ---- custom places -----------------------------------------------------------
+
+  /// Parsed once and kept: the map asks for these on every rebuild.
+  List<CustomPlace>? _customCache;
+
+  List<CustomPlace> get customPlaces => _customCache ??= List.unmodifiable(_readCustom());
+
+  List<CustomPlace> _readCustom() {
+    final raw = _prefs.getString('customPlaces');
+    if (raw == null) return const [];
+    try {
+      final list = jsonDecode(raw);
+      if (list is! List) return const [];
+      return [for (final j in list) ?CustomPlace.fromJson(j)];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> _saveCustom(List<CustomPlace> list) async {
+    await _prefs.setString('customPlaces', jsonEncode([for (final c in list) c.toJson()]));
+    _customCache = null;
+    notifyListeners();
+  }
+
+  /// Adds or replaces (same id) a custom place.
+  Future<void> saveCustomPlace(CustomPlace p) async {
+    final list = [...customPlaces];
+    final i = list.indexWhere((c) => c.id == p.id);
+    if (i >= 0) {
+      list[i] = p;
+    } else {
+      list.add(p);
+    }
+    await _saveCustom(list);
+  }
+
+  Future<void> removeCustomPlace(String id) => _saveCustom([...customPlaces]..removeWhere((c) => c.id == id));
+
 
   Place? place(PlaceKind k) {
     final raw = _prefs.getString('place_${k.label}');
@@ -126,12 +198,22 @@ class AppStore extends ChangeNotifier {
   /// Picks up what the trip service wrote (prefs are per-isolate caches).
   Future<void> reload() async {
     await _prefs.reload();
+    _customCache = null;
     activeCatSkin.value = CatSkin.byId(_prefs.getString('catSkin'));
   }
 
   /// True while a trip runs (in the Android service, or in-process).
   bool get tripRunning => _prefs.getBool('tripRunning') ?? false;
   Future<void> setTripRunning(bool v) => _prefs.setBool('tripRunning', v);
+
+  /// When the running trip last proved it was alive (written once a minute),
+  /// so a trip stopped by an app update can be told from one that died long ago.
+  DateTime? get tripAliveAt {
+    final ms = _prefs.getInt('tripAliveAt');
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
+  Future<void> markTripAlive(DateTime at) => _prefs.setInt('tripAliveAt', at.millisecondsSinceEpoch);
 
   /// In-progress trip journal (no coordinates), for interrupted sessions.
   String? get activeTrip => _prefs.getString('activeTrip');
