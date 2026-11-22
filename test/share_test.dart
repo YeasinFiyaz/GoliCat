@@ -143,6 +143,35 @@ void main() {
       expect(store.shareJson, isNull);
     });
 
+    test('until the trip ends: same link past any time limit, ends only when stopped', () async {
+      final c = make();
+      await c.start(now: ShareController.stateOf(session));
+      final id = c.id!;
+      final first = relay.requests.firstWhere((r) => r.method == 'POST');
+      expect((jsonDecode(first.body) as Map)['open'], isTrue);
+      for (var i = 0; i < 30; i++) {
+        now = now.add(const Duration(hours: 1));
+        await c.tick(session);
+      }
+      expect(c.active, isTrue);
+      expect(c.id, id, reason: 'same link after 30 hours');
+      expect(relay.ended, isNot(contains(id)));
+      await c.stop();
+      expect(relay.ended, contains(id));
+    });
+
+    test('timed share ends exactly at its time, not a second later', () async {
+      final c = make();
+      await c.start(duration: const Duration(minutes: 15), now: ShareController.stateOf(session));
+      final end = c.until!;
+      now = end.subtract(const Duration(seconds: 1));
+      await c.tick(session);
+      expect(c.active, isTrue);
+      now = end;
+      await c.tick(session);
+      expect(c.active, isFalse);
+    });
+
     test('offline: keeps the share and marks failing, recovers later', () async {
       final c = make();
       await c.start(duration: const Duration(hours: 1), now: ShareController.stateOf(session));

@@ -5,6 +5,10 @@
 
 const ID_RE = /^[A-Za-z0-9_-]{22}$/;
 const MAX_SHARE_MS = 24 * 3600 * 1000;
+// "Until the trip ends" shares have no fixed end: every position push keeps
+// them alive, and End trip stops them. If the phone goes silent this long
+// (battery died, app removed) the link closes by itself.
+const OPEN_LEASE_MS = 12 * 3600 * 1000;
 const MIN_WRITE_GAP_MS = 1500;
 const MODES = new Set(['starting', 'idle', 'waiting', 'walking', 'fast', 'lost', 'atWork', 'atHome', 'studying', 'hangingOut', 'jammed']);
 
@@ -167,7 +171,7 @@ export class Share {
       if (!meta) return json({ status: 'unknown' }, 404);
       if (meta.ended) return json({ status: 'ended' }, 410);
       const state = (await st.get('state')) ?? null;
-      return json({ status: 'live', until: meta.until, now, state });
+      return json({ status: 'live', until: meta.until, open: meta.open === true, now, state });
     }
 
     const auth = req.headers.get('authorization') || '';
@@ -196,18 +200,26 @@ export class Share {
     }
     if (meta && now - (meta.lastWrite ?? 0) < MIN_WRITE_GAP_MS) return json({ error: 'slow_down' }, 429);
 
-    const wantUntil = typeof body.until === 'number' ? body.until : now + 3600 * 1000;
-    const until = Math.min(Math.max(wantUntil, now + 60 * 1000), now + MAX_SHARE_MS);
-    // Position pushes carry no `until`: they must not extend the share the user chose.
-    const newMeta = meta
-      ? { ...meta, lastWrite: now, ...(typeof body.until === 'number' ? { until: Math.min(until, meta.created + MAX_SHARE_MS) } : {}) }
-      : { hash, until, created: now, lastWrite: now, ended: false };
+    let newMeta;
+    if (meta?.open) {
+      // Until the trip ends: each push renews the lease.
+      newMeta = { ...meta, lastWrite: now, until: now + OPEN_LEASE_MS };
+    } else if (meta) {
+      // Timed share: position pushes never extend the time the user chose.
+      newMeta = { ...meta, lastWrite: now };
+    } else if (body.open === true) {
+      newMeta = { hash, open: true, until: now + OPEN_LEASE_MS, created: now, lastWrite: now, ended: false };
+    } else {
+      const wantUntil = typeof body.until === 'number' ? body.until : now + 3600 * 1000;
+      const until = Math.min(Math.max(wantUntil, now + 60 * 1000), now + MAX_SHARE_MS);
+      newMeta = { hash, until, created: now, lastWrite: now, ended: false };
+    }
     await st.put('meta', newMeta);
     const state = body.lat === undefined ? null : cleanState(body);
     if (state) await st.put('state', state);
     // Wipe everything an hour after the share expires.
     await st.setAlarm(newMeta.until + 3600 * 1000);
-    return json({ status: 'live', until: newMeta.until });
+    return json({ status: 'live', until: newMeta.until, open: newMeta.open === true });
   }
 
   async alarm() {

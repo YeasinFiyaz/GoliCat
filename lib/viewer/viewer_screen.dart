@@ -58,6 +58,7 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
   bool _follow = true;
   ViewStatus _status = ViewStatus.loading;
   DateTime? _until;
+  bool _open = false;
   Timer? _poll, _clockTick;
   int _failures = 0;
   bool _fetching = false;
@@ -88,6 +89,11 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
       _poll = Timer.periodic(widget.pollEvery ?? const Duration(seconds: 3), (_) => _fetch());
     }
     _clockTick = Timer.periodic(const Duration(seconds: 1), (_) {
+      // A timed share closes on the second, without waiting for the next poll.
+      final u = _until;
+      if (!_open && u != null && _status == ViewStatus.live && !DateTime.now().add(_session.clockOffset).isBefore(u)) {
+        _end(ViewStatus.ended);
+      }
       _session.refresh();
       if (mounted) setState(() {});
     });
@@ -114,6 +120,7 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
       if (r.statusCode != 200) throw Exception('status ${r.statusCode}');
       final j = jsonDecode(r.body) as Map<String, dynamic>;
       _until = j['until'] is num ? DateTime.fromMillisecondsSinceEpoch((j['until'] as num).toInt()) : null;
+      _open = j['open'] == true;
       if (j['now'] is num) {
         _session.clockOffset = Duration(milliseconds: (j['now'] as num).toInt() - DateTime.now().millisecondsSinceEpoch);
       }
@@ -286,7 +293,7 @@ class _ViewerScreenState extends State<ViewerScreen> with SingleTickerProviderSt
             if (_session.stale) 'Phone may be locked or offline',
             if (st.accuracy > 0) '±${st.accuracy.round()} m',
             if (st.moving && !_session.stale) '${(st.speed * 3.6).toStringAsFixed(0)} km/h',
-            if (_until != null) 'until ${_hm(_until!)}',
+            if (_open) 'until the trip ends' else if (_until != null) 'until ${_hm(_until!)}',
           ];
           detail = parts.join(' · ');
           if (_session.stale) dot = Colors.orange;

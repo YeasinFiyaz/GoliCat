@@ -27,7 +27,9 @@ class ShareController extends ChangeNotifier {
   final DateTime Function() _clock;
   final String baseUrl;
 
-  /// "Until the trip ends" still has a server-side limit.
+  /// "Until the trip ends" has no end time: the server keeps the link open
+  /// while the trip keeps sending, and End trip closes it. This is only the
+  /// placeholder end sent with the first write (the server renews it).
   static const tripLimit = Duration(hours: 12);
   static const movingEvery = Duration(seconds: 5);
   static const stillEvery = Duration(seconds: 15);
@@ -87,7 +89,12 @@ class ShareController extends ChangeNotifier {
       final r = await _client
           .post(_api(newId),
               headers: {'content-type': 'application/json', 'authorization': 'Bearer $token'},
-              body: jsonEncode({'until': end.millisecondsSinceEpoch, ...?now?.toJson(), if (now != null) 'skin': store.catSkinId}))
+              body: jsonEncode({
+                'until': end.millisecondsSinceEpoch,
+                if (duration == null) 'open': true,
+                ...?now?.toJson(),
+                if (now != null) 'skin': store.catSkinId,
+              }))
           .timeout(const Duration(seconds: 12));
       if (r.statusCode != 200) return false;
       final j = jsonDecode(r.body) as Map<String, dynamic>;
@@ -147,7 +154,9 @@ class ShareController extends ChangeNotifier {
   Future<void> tick(RoamSession session) async {
     if (!active || _busy) return;
     final now = _clock();
-    if (until != null && now.isAfter(until!)) {
+    // A timed share ends exactly at its time. "Until the trip ends" only ends
+    // with the trip (its `until` is the server's renewable lease).
+    if (!untilTripEnds && until != null && !now.isBefore(until!)) {
       await stop();
       return;
     }
@@ -177,6 +186,12 @@ class ShareController extends ChangeNotifier {
         _persist();
       } else if (r.statusCode == 200) {
         lastSentAt = now;
+        if (untilTripEnds) {
+          try {
+            final u = (jsonDecode(r.body) as Map<String, dynamic>)['until'];
+            if (u is num) until = DateTime.fromMillisecondsSinceEpoch(u.toInt());
+          } catch (_) {}
+        }
         failing = false;
         _lastMode = st?.mode ?? _lastMode;
         if (st != null) _lastSkin = skin;

@@ -73,3 +73,35 @@ test('viewer page is served for share links', async () => {
   assert.equal(r.status, 200);
   assert.match(await r.text(), /<html|<!doctype/i);
 });
+
+test('until the trip ends: no time cap, each push renews, delete ends it', async () => {
+  const id = rid();
+  let r = await call(id, 'POST', { until: Date.now() + 3600e3, open: true, lat: 23.78, lng: 90.394, mode: 'walking' });
+  const a = await r.json();
+  assert.equal(a.open, true);
+  assert.ok(a.until >= Date.now() + 11 * 3600e3, 'lease, not the 1 h sent');
+  await wait(1600);
+  r = await call(id, 'POST', { lat: 23.781, lng: 90.394, mode: 'walking' });
+  const b = await r.json();
+  assert.ok(b.until > a.until, 'push renews the lease');
+  const g = await (await call(id, 'GET', null, null)).json();
+  assert.equal(g.open, true);
+  await call(id, 'DELETE');
+  assert.equal((await call(id, 'GET', null, null)).status, 410);
+});
+
+test('timed share stops working right at its time', { timeout: 90e3 }, async () => {
+  const id = rid();
+  const end = Date.now() + 60e3;
+  const r = await call(id, 'POST', { until: end, lat: 23.78, lng: 90.394, mode: 'walking' });
+  const { until, open } = await r.json();
+  assert.equal(open, false);
+  assert.ok(Math.abs(until - end) < 2000);
+  await wait(1600);
+  await call(id, 'POST', { lat: 23.79, lng: 90.394, mode: 'walking' });
+  assert.equal((await (await call(id, 'GET', null, null)).json()).until, until, 'pushes never extend it');
+  await wait(until - Date.now() - 3000);
+  assert.equal((await call(id, 'GET', null, null)).status, 200, 'still live just before');
+  await wait(until - Date.now() + 500);
+  assert.equal((await call(id, 'GET', null, null)).status, 410, 'gone right after');
+});
