@@ -409,6 +409,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     if (kind == null) {
       final c = d.custom!.copyWith(center: d.center);
       await widget.store.saveCustomPlace(c);
+      trip.customPlacesChanged();
       if (!mounted) return;
       setState(() {
         _savingPlace = false;
@@ -432,6 +433,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     final kind = d.kind;
     if (kind == null) {
       await widget.store.removeCustomPlace(d.custom!.id);
+      trip.customPlacesChanged();
     } else {
       await widget.store.setPlace(kind, null);
       trip.placeChanged(kind);
@@ -1465,7 +1467,16 @@ class _CustomPlaceSheetState extends State<_CustomPlaceSheet> {
                   ),
                 ),
             ]),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Row(key: ValueKey(_icon), children: [
+                const Icon(Icons.pets, size: 16),
+                const SizedBox(width: 6),
+                Expanded(child: Text(catActivityFor(_icon), style: t.bodySmall)),
+              ]),
+            ),
+            const SizedBox(height: 14),
             FilledButton.icon(
               onPressed: _done,
               icon: Icon(widget.current == null ? Icons.add_location_alt : Icons.check),

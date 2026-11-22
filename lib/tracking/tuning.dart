@@ -19,7 +19,7 @@ class Tuning {
     this.jamDelay = const Duration(seconds: 20),
     this.jamRecentRide = const Duration(seconds: 30),
     this.slowSamplingAfter = const Duration(seconds: 90),
-    this.placeDwell = const Duration(minutes: 2),
+    this.placeDwell = const Duration(minutes: 1),
     this.placePassWindow = const Duration(seconds: 60),
     this.placePassMaxNetM = 30,
     this.placeOutsideGrace = const Duration(seconds: 30),

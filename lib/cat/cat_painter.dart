@@ -112,6 +112,15 @@ class _CatDraw {
     if (p[P.plate] > 0.01) _plate(p[P.plate], p[P.bite]);
     if (p[P.tv] > 0.01) _tv(p[P.tv]);
     if (p[P.litter] > 0.01) _litterBack(p[P.litter]);
+    if (p[P.sun] > 0.01) _sun(p[P.sun]);
+    if (p[P.grass] > 0.01) _grass(p[P.grass]);
+    if (p[P.busStop] > 0.01) {
+      final bx = p[P.busX];
+      if (bx > 0.001 && bx < 0.999) _bus(bx, p[P.busStop]);
+      _busStop(p[P.busStop]);
+    }
+    if (p[P.stall] > 0.01) _stall(p[P.stall], p[P.stallFish]);
+    if (p[P.biryani] > 0.01) _biryani(p[P.biryani], p[P.bite]);
 
     c.save();
     c.translate(p[P.rootX], p[P.rootY]);
@@ -140,6 +149,7 @@ class _CatDraw {
     if (sq != 0) c.scale(1 + sq * 0.6, 1 - sq);
     if (p[P.mapVis] > 0.01) _paperMap();
     if (p[P.desk] > 0.01) _deskFront(p[P.desk]); // the paws rest on top of it
+    if (p[P.napkin] > 0.01) _napkin(p[P.napkin]);
     if (p[P.blanket] < 0.6) _leg(P.fnX, P.fnY, P.fnA1, P.fnA2, p[P.legLen]);
     if (p[P.pencil] > 0.01) _pencil(p[P.pencil]);
     if (p[P.cha] > 0.01) _chaGlass();
@@ -147,12 +157,14 @@ class _CatDraw {
     if (p[P.paper] > 0.01) _newspaper(p[P.paper]);
     if (p[P.phone] > 0.01) _phone(p[P.phone]);
     if (p[P.gamepad] > 0.01) _gamepad(p[P.gamepad]);
+    if (p[P.bag] > 0.01) _bag(p[P.bag]);
     if (p[P.foam] > 0.01) _foam(p[P.foam].clamp(0.0, 1.0));
     if (p[P.splash] > 0.01) _splash(p[P.splash]);
     if (p[P.glassesFace] > 0.01) _glassesOnFace(p[P.glassesFace]);
     if (p[P.scarfFace] > 0.01) _scarfOverFace(p[P.scarfFace]);
     if (p[P.bubble] > 0.02) _snotBubble();
     c.restore();
+    if (p[P.fly] > 0.01) _butterfly(Offset(p[P.flyX], p[P.flyY]), p[P.fly]);
     c.restore();
 
     _marks();
@@ -1323,6 +1335,276 @@ class _CatDraw {
       c.drawCircle(head + const Offset(-1.6, 0), 1.6, _inkA(a, 0.8)..style = PaintingStyle.stroke);
     }
     c.drawCircle(head + const Offset(-1.8, -0.6), 0.5, _fill(k.ink, a));
+    c.restore();
+  }
+
+  // ---- places from "More places" -------------------------------------------
+
+  /// Fish stall: a wooden table, a big rui on a banana leaf, a price tag.
+  void _stall(double a, double fish) {
+    final wood = Paint()
+      ..color = CatInk.wood.withValues(alpha: a)
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+    c.drawLine(const Offset(38, -16), const Offset(37, 0), wood);
+    c.drawLine(const Offset(64, -16), const Offset(65, 0), wood);
+    final top = RRect.fromRectAndRadius(const Rect.fromLTWH(33, -20, 35, 5), const Radius.circular(1.2));
+    c.drawRRect(top, _fill(CatInk.wood, a));
+    c.drawRRect(top, _inkA(a, 1.1));
+    // Banana leaf.
+    final leaf = _ellipse(const Offset(51, -21), 15, 2.6, 0, n: 10, jitter: 0.2);
+    _shape(leaf, const Color(0xFF5FA845), a);
+    c.drawLine(const Offset(37, -21), const Offset(65, -21), Paint()
+      ..color = const Color(0xFF3E7D2C).withValues(alpha: a)
+      ..strokeWidth = 0.6);
+    if (fish > 0.01) {
+      final fa = a * fish;
+      final body = Path()
+        ..moveTo(60, -24)
+        ..quadraticBezierTo(51, -30, 42, -24.5)
+        ..lineTo(39, -27.5)
+        ..lineTo(39.5, -21.5)
+        ..lineTo(42, -23.5)
+        ..quadraticBezierTo(51, -19.5, 60, -24)
+        ..close();
+      c.drawPath(body, _fill(const Color(0xFF9DB3C2), fa));
+      c.drawPath(body, _inkA(fa, 1.0));
+      // Scales and an eye.
+      final sc = Paint()
+        ..color = const Color(0xFF6F8797).withValues(alpha: fa)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.6;
+      for (var x = 46.0; x < 56; x += 2.6) {
+        c.drawArc(Rect.fromCenter(center: Offset(x, -24.4), width: 2.4, height: 2.4), -1.2, 2.4, false, sc);
+      }
+      c.drawCircle(const Offset(57.2, -24.8), 0.7, _fill(k.ink, fa));
+    }
+    // Price tag on a stick.
+    c.drawLine(const Offset(64, -21), const Offset(64, -31), Paint()
+      ..color = CatInk.wood.withValues(alpha: a)
+      ..strokeWidth = 0.9);
+    final tag = RRect.fromRectAndRadius(const Rect.fromLTWH(59.5, -38, 9, 7), const Radius.circular(1));
+    c.drawRRect(tag, _fill(const Color(0xFFFFF4D6), a));
+    c.drawRRect(tag, _inkA(a, 0.8));
+    _text('৳', const Offset(64, -34.5), 5.5, const Color(0xFFD7263D), a);
+  }
+
+  /// A jute bag in the near paw with the fish's tail poking out.
+  void _bag(double a) {
+    final paw = _nearPaw;
+    final o = paw + const Offset(0, 2);
+    final tail = Path()
+      ..moveTo(o.dx - 1, o.dy + 2)
+      ..lineTo(o.dx - 3.5, o.dy - 3)
+      ..lineTo(o.dx + 0.5, o.dy - 1.2)
+      ..lineTo(o.dx + 3, o.dy - 3.5)
+      ..lineTo(o.dx + 2, o.dy + 2)
+      ..close();
+    c.drawPath(tail, _fill(const Color(0xFF9DB3C2), a));
+    c.drawPath(tail, _inkA(a, 0.8));
+    final bag = Path()
+      ..moveTo(o.dx - 5, o.dy + 1)
+      ..lineTo(o.dx + 5, o.dy + 1)
+      ..lineTo(o.dx + 6, o.dy + 12)
+      ..quadraticBezierTo(o.dx, o.dy + 13.5, o.dx - 6, o.dy + 12)
+      ..close();
+    c.drawPath(bag, _fill(const Color(0xFFD9B26F), a));
+    c.drawPath(bag, _inkA(a, 1.0));
+    final weave = Paint()
+      ..color = const Color(0xFFA57F3E).withValues(alpha: a)
+      ..strokeWidth = 0.5;
+    for (var y = o.dy + 4; y < o.dy + 12; y += 2.5) {
+      c.drawLine(Offset(o.dx - 5, y), Offset(o.dx + 5.5, y), weave);
+    }
+    c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _fill(k.paw, a));
+    c.drawOval(Rect.fromCenter(center: paw, width: 6.2, height: 4.4), _inkA(a));
+  }
+
+  /// White napkin tucked in under the chin.
+  void _napkin(double a) {
+    final l = _hp(-2, 10.5), r = _hp(11, 10.5), tip = _hp(4.5, 20);
+    final path = Path()
+      ..moveTo(l.dx, l.dy)
+      ..quadraticBezierTo((l.dx + r.dx) / 2, l.dy + 1.5, r.dx, r.dy)
+      ..quadraticBezierTo(r.dx - 1, (r.dy + tip.dy) / 2, tip.dx, tip.dy)
+      ..quadraticBezierTo(l.dx + 1, (l.dy + tip.dy) / 2, l.dx, l.dy)
+      ..close();
+    c.drawPath(path, _fill(const Color(0xFFFFFFFF), a));
+    c.drawPath(path, _inkA(a, 1.0));
+    c.drawLine(_hp(2, 13), _hp(4.5, 17.5), Paint()
+      ..color = const Color(0xFFD7263D).withValues(alpha: 0.7 * a)
+      ..strokeWidth = 0.7);
+  }
+
+  /// A plate of biryani: saffron rice, a leg piece, an egg. It empties as
+  /// [bite] goes to 1 and is full again when it drops back to 0.
+  void _biryani(double a, double bite) {
+    c.save();
+    c.translate(-4, 0);
+    c.scale(1.25);
+    final rim = Rect.fromCenter(center: const Offset(27, -1.6), width: 25, height: 5.4);
+    c.drawOval(rim, _fill(const Color(0xFFDCE1E6), a));
+    c.drawOval(rim, _inkA(a, 1.1));
+    c.drawOval(Rect.fromCenter(center: const Offset(27, -1.9), width: 19, height: 3.4),
+        _fill(const Color(0xFFC3CAD1), a));
+    final left = 1 - bite;
+    if (left > 0.02) {
+      final rice = _ellipse(Offset(27, -3.2 - 1.6 * left), 9 * (0.35 + 0.65 * left), 1.2 + 2.6 * left, 0, n: 10, jitter: 0.25);
+      _shape(rice, const Color(0xFFF3C969), a);
+      // Saffron and white grains.
+      for (var i = 0; i < 7; i++) {
+        final x = 27 + 7.5 * left * hashNoise(i, 3);
+        final y = -3.6 - 2.2 * left + 1.4 * left * hashNoise(i, 9);
+        c.drawCircle(Offset(x, y), 0.45, _fill(i.isEven ? const Color(0xFFE07A1F) : const Color(0xFFFFFCF2), a));
+      }
+    }
+    if (bite < 0.55) {
+      // Leg piece.
+      final la = a * (1 - span(bite, 0.45, 0.55));
+      final leg = _ellipse(const Offset(31.5, -7.2), 3.4, 2.4, -0.5, n: 8, jitter: 0.15);
+      _shape(leg, const Color(0xFF9C5A2E), la);
+      c.drawLine(const Offset(33.8, -9.2), const Offset(36, -11), Paint()
+        ..color = const Color(0xFFFFF4E0).withValues(alpha: la)
+        ..strokeWidth = 1.3
+        ..strokeCap = StrokeCap.round);
+    }
+    if (bite < 0.3) {
+      final ea = a * (1 - span(bite, 0.22, 0.3));
+      c.drawOval(Rect.fromCenter(center: const Offset(22.5, -6.4), width: 4.6, height: 3.4), _fill(const Color(0xFFFFFFFF), ea));
+      c.drawOval(Rect.fromCenter(center: const Offset(22.5, -6.4), width: 4.6, height: 3.4), _inkA(ea, 0.7));
+      c.drawCircle(const Offset(22.6, -6.4), 1.1, _fill(const Color(0xFFFFC233), ea));
+    }
+    // Lemon wedge on the rim.
+    final lemon = Path()
+      ..moveTo(36.5, -2.6)
+      ..arcTo(Rect.fromCenter(center: const Offset(36.5, -2.6), width: 5, height: 5), math.pi, math.pi, false)
+      ..close();
+    c.drawPath(lemon, _fill(const Color(0xFFE8E35A), a));
+    c.drawPath(lemon, _inkA(a, 0.7));
+    c.restore();
+    // A glass of borhani beside the plate.
+    final glass = Path()
+      ..moveTo(50, -13)
+      ..lineTo(57, -13)
+      ..lineTo(56, 0)
+      ..lineTo(51, 0)
+      ..close();
+    c.drawPath(glass, _fill(const Color(0xFFE6F0D8), a));
+    c.drawPath(glass, _inkA(a, 1.0));
+    c.drawLine(const Offset(50.6, -10), const Offset(56.4, -10), _inkA(0.4 * a, 0.6));
+  }
+
+  /// Bus stop: a pole with a round sign and a little shelter roof.
+  void _busStop(double a) {
+    final pole = Paint()
+      ..color = const Color(0xFF7C8591).withValues(alpha: a)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    c.drawLine(const Offset(-48, 0), const Offset(-48, -62), pole);
+    c.drawCircle(const Offset(-48, -66), 7, _fill(const Color(0xFFD7263D), a));
+    c.drawCircle(const Offset(-48, -66), 7, _inkA(a, 1.1));
+    // Bus icon on the sign.
+    final b = RRect.fromRectAndRadius(const Rect.fromLTWH(-52, -69.5, 8, 6), const Radius.circular(1.2));
+    c.drawRRect(b, _fill(const Color(0xFFFFFFFF), a));
+    c.drawRect(const Rect.fromLTWH(-51, -68.6, 6, 2), _fill(const Color(0xFF8FC9F0), a));
+    c.drawCircle(const Offset(-50, -63.3), 0.9, _fill(k.ink, a));
+    c.drawCircle(const Offset(-46, -63.3), 0.9, _fill(k.ink, a));
+    // Kerb.
+    c.drawRect(const Rect.fromLTWH(-66, -1.5, 60, 2.5), _fill(const Color(0xFFBFC5CC), 0.8 * a));
+  }
+
+  /// A Dhaka bus roaring past behind the cat; [x] goes 0 → 1 left to right.
+  void _bus(double x, double a) {
+    final left = -175 + 350 * x;
+    final cx = left + 48;
+    final fade = a * (1 - span(cx.abs(), 40, 95));
+    if (fade < 0.01) return;
+    c.save();
+    c.clipRect(const Rect.fromLTRB(-70, -88, 70, 12));
+    final body = RRect.fromRectAndRadius(Rect.fromLTWH(left, -44, 96, 38), const Radius.circular(5));
+    c.drawRRect(body, _fill(const Color(0xFF2E8B57), fade));
+    c.drawRect(Rect.fromLTWH(left, -22, 96, 5), _fill(const Color(0xFFD7263D), fade));
+    for (var i = 0; i < 6; i++) {
+      final w = RRect.fromRectAndRadius(Rect.fromLTWH(left + 6 + i * 14.5, -39, 11, 11), const Radius.circular(1.5));
+      c.drawRRect(w, _fill(const Color(0xFFBFE3F7), fade));
+    }
+    c.drawRRect(body, _inkA(fade, 1.3));
+    for (final wx in [left + 18, left + 76]) {
+      c.drawCircle(Offset(wx, -5), 6, _fill(const Color(0xFF2B2D33), fade));
+      c.drawCircle(Offset(wx, -5), 2.4, _fill(const Color(0xFFBFC5CC), fade));
+    }
+    // Wind lines behind it.
+    final wind = Paint()
+      ..color = k.ink.withValues(alpha: 0.35 * fade)
+      ..strokeWidth = 1
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 3; i++) {
+      final y = -36.0 + i * 11;
+      c.drawLine(Offset(left - 6 - i * 3, y), Offset(left - 20 - i * 5, y), wind);
+    }
+    c.restore();
+  }
+
+  /// Grass tufts and a couple of flowers along the ground.
+  void _grass(double a) {
+    c.drawRect(const Rect.fromLTWH(-66, -1.5, 132, 3), _fill(const Color(0xFF8CCB6A), 0.7 * a));
+    final blade = Paint()
+      ..color = const Color(0xFF4E9F3D).withValues(alpha: a)
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 16; i++) {
+      final x = -62.0 + i * 8.1 + 2 * hashNoise(i, 4);
+      final h = 3.5 + 2 * hashNoise(i, 7).abs();
+      c.drawLine(Offset(x, 0), Offset(x - 1.2, -h), blade);
+      c.drawLine(Offset(x + 1.2, 0), Offset(x + 2.2, -h * 0.8), blade);
+    }
+    for (final f in const [(x: 48.0, col: Color(0xFFE5446D)), (x: -40.0, col: Color(0xFFFFD166)), (x: 60.0, col: Color(0xFFFFFFFF))]) {
+      c.drawLine(Offset(f.x, 0), Offset(f.x, -7), blade);
+      for (var j = 0; j < 5; j++) {
+        final ang = j * 2 * math.pi / 5;
+        c.drawCircle(Offset(f.x + 1.6 * math.cos(ang), -8 + 1.6 * math.sin(ang)), 1.2, _fill(f.col, a));
+      }
+      c.drawCircle(Offset(f.x, -8), 0.9, _fill(const Color(0xFFF2A65A), a));
+    }
+  }
+
+  /// A warm sun in the corner with slowly turning rays.
+  void _sun(double a) {
+    const at = Offset(-52, -70);
+    final t = p[P.time];
+    c.drawCircle(at, 11, _fill(const Color(0xFFFFE08A), 0.35 * a));
+    final ray = Paint()
+      ..color = const Color(0xFFF7B32B).withValues(alpha: a)
+      ..strokeWidth = 1.3
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 8; i++) {
+      final ang = i * math.pi / 4 + t * 0.3;
+      final d = Offset(math.cos(ang), math.sin(ang));
+      c.drawLine(at + d * 8.5, at + d * 11.5, ray);
+    }
+    c.drawCircle(at, 6.5, _fill(const Color(0xFFFFC233), a));
+    c.drawCircle(at, 6.5, _inkA(a, 1.0));
+  }
+
+  /// A small orange butterfly; its wings flap fast in flight.
+  void _butterfly(Offset at, double a) {
+    final t = p[P.time];
+    final flap = 0.25 + 0.75 * math.sin(t * 22).abs();
+    c.save();
+    c.translate(at.dx, at.dy);
+    c.scale(1.6);
+    c.rotate(0.15 * math.sin(t * 3));
+    for (final s in const [-1.0, 1.0]) {
+      final up = _ellipse(Offset(s * 2.6 * flap, -1.8), 2.8 * flap, 2.4, s * 0.5, n: 8, jitter: 0.1);
+      c.drawPath(up, _fill(const Color(0xFFF59E2E), a));
+      c.drawPath(up, _inkA(a, 0.7));
+      final low = _ellipse(Offset(s * 2 * flap, 1.6), 2 * flap, 1.6, -s * 0.4, n: 8, jitter: 0.1);
+      c.drawPath(low, _fill(const Color(0xFFFFC857), a));
+      c.drawPath(low, _inkA(a, 0.7));
+    }
+    c.drawLine(const Offset(0, -3), const Offset(0, 3), _inkA(a, 1.1));
+    c.drawLine(const Offset(0, -3), const Offset(-1.5, -5.5), _inkA(a, 0.5));
+    c.drawLine(const Offset(0, -3), const Offset(1.5, -5.5), _inkA(a, 0.5));
     c.restore();
   }
 

@@ -137,6 +137,11 @@ class TripController extends ChangeNotifier {
     if (active) backend.send('place', {'kind': k.name});
   }
 
+  /// A pin from "More places" was added, moved, changed or removed.
+  void customPlacesChanged() {
+    if (active) backend.send('customPlaces');
+  }
+
   /// The user picked another cat; a running share should send it from now on.
   void avatarChanged() {
     if (active) backend.send('avatar');

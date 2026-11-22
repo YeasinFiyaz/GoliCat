@@ -28,6 +28,8 @@ enum ClipId {
   // Home life: one activity at a time, about a minute each, in a shuffled order.
   homeStroll, homeWake, tuckInHome, leaveHome,
   bath, eat, potty, lounge, gaming,
+  // Pins from "More places".
+  bazar, feast, busWait, park, leavePlace,
 }
 
 /// The title for everything the cat does at home: the bar stays calm while
@@ -88,6 +90,11 @@ const clipSpecs = <ClipId, ClipSpec>{
   ClipId.potty: ClipSpec(null, homeLabel),
   ClipId.lounge: ClipSpec(null, homeLabel),
   ClipId.gaming: ClipSpec(null, homeLabel),
+  ClipId.bazar: ClipSpec(null, 'বাজারে · At the bazar'),
+  ClipId.feast: ClipSpec(null, 'খাচ্ছি · Eating out'),
+  ClipId.busWait: ClipSpec(null, 'বাসের অপেক্ষায় · Waiting for the bus'),
+  ClipId.park: ClipSpec(null, 'পার্কে · At the park'),
+  ClipId.leavePlace: ClipSpec(1.3, 'Off we go'),
 };
 
 // ---------------------------------------------------------------------------
@@ -704,6 +711,17 @@ Pose sampleClip(ClipId id, double t, ClipCtx c) {
       return _lounge(t, c);
     case ClipId.gaming:
       return _gaming(t, c);
+    case ClipId.bazar:
+      return _bazar(t, c);
+    case ClipId.feast:
+      return _feast(t, c);
+    case ClipId.busWait:
+      return _busWait(t, c);
+    case ClipId.park:
+      return _park(t, c);
+    case ClipId.leavePlace:
+      final st = standPose().set({P.pinVis: 0, P.eyeOpen: blink(c.time)});
+      return Pose.lerp(st, _walkCycle(t, c), easeInOut(span(t, 0.35, 1.1)));
 
     case ClipId.grumpy:
       final p = _sleeping(0, c);
@@ -1188,5 +1206,281 @@ Pose _teaBreak(double t, ClipCtx c) {
     P.tailCurl: 0.3 + 0.25 * math.max(0, math.sin(t * 2.1)) + 0.2 * ahh,
     P.tailEndX: 25 + 1.5 * math.sin(t * 0.9),
   });
+  return p;
+}
+
+// ---------------------------------------------------------------------------
+// Places from "More places". Each scene enters from standing on its own
+// (props fade in) and runs as a long cycle, so it never looks like a loop.
+
+/// Standing, a little towards the left so the scene has room on the right.
+Pose _placeStand(ClipCtx c) => standPose().set({
+      P.pinVis: 0, P.rootX: -6,
+      P.eyeOpen: blink(c.time, 4.1),
+      P.scarfPhase: c.time * 2,
+    });
+
+/// A soft breath and tail sway underneath every scene.
+void _alive(Pose p, double t, ClipCtx c, {double tail = 1}) {
+  final breathe = math.sin(2 * math.pi * t / 3.4);
+  p[P.bodyH] += 0.3 * breathe;
+  p[P.headY] += 0.35 * breathe * c.amp;
+  p[P.tailCurl] += 0.18 * tail * math.sin(t * 1.7);
+  p[P.tailEndX] += 1.4 * tail * math.sin(t * 0.9);
+}
+
+/// The fish stall: inspect, "কত?", shock at the price, "না না!", a deal,
+/// then a happy pose with the fish in a bag. 14-second cycle.
+Pose _bazar(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = _placeStand(c).set({P.stall: easeOut(span(t, 0, 0.6)), P.stallFish: 1});
+  final u = t % 14;
+  _alive(p, t, c);
+  final sniff = keys(u, [[0, 0], [0.4, 1], [1.8, 1], [2.2, 0], [14, 0]]);
+  final point = keys(u, [[0, 0], [2.2, 0], [2.6, 1], [3.6, 1], [4.0, 0], [14, 0]]);
+  final shock = keys(u, [[0, 0], [3.8, 0], [3.9, 1], [5.0, 1], [5.3, 0], [14, 0]]);
+  final shake = keys(u, [[0, 0], [5.2, 0], [5.4, 1], [6.9, 1], [7.1, 0], [14, 0]]);
+  final deal = keys(u, [[0, 0], [7.3, 0], [7.6, 1], [8.9, 1], [9.2, 0], [14, 0]]);
+  final carry = keys(u, [[0, 0], [9.0, 0], [9.6, 1], [13.2, 1], [13.8, 0], [14, 0]]);
+  p.set({
+    // Lean in and sniff the fish.
+    P.headX: 25 + 4 * sniff - 2 * shock, P.headY: p[P.headY] + 2.5 * sniff - 1.5 * shock,
+    P.headRot: 0.2 * sniff + 0.22 * shake * math.sin(u * 15) - 0.1 * carry,
+    P.bodyRot: 0.06 * sniff,
+    P.mouth: 0.08 * sniff * (0.5 + 0.5 * math.sin(u * 22)) + 0.3 * point + 0.25 * shake + 0.2 * deal + 0.15 * carry,
+    // Point at the fish while asking; later the paw holds up the bag.
+    P.fnA1: 1.45 * point + 1.3 * carry, P.fnA2: 0.25 * point + 0.25 * carry,
+    P.eyeLook: 0.9 * (sniff + point) - 0.3 * shake,
+    P.eyeWide: shock, P.exclaim: shock,
+    P.eyeOpen: carry > 0.5 ? 0.06 : (shock > 0.3 ? 1 : blink(c.time, 4.1)),
+    P.earFront: 0.45 * shock - 0.2 * shake + 0.25 * carry,
+    P.earBack: 0.45 * shock - 0.2 * shake + 0.25 * carry,
+    P.brow: 0.7 * shake,
+    P.rootY: -3 * a * math.sin(math.pi * span(u, 3.85, 4.15)),
+    // The fish leaves the stall and appears in the bag.
+    P.stallFish: 1 - span(u, 9.0, 9.4) * (1 - span(u, 13.5, 13.9)),
+    P.bag: carry,
+    P.tailCurl: 0.6 + 0.6 * carry * math.max(0, math.sin(u * 6)),
+  });
+  const says = <List<double>>[[2.4, 3.7, 6], [5.3, 7.0, 7], [7.5, 9.0, 8]];
+  for (final s in says) {
+    final v = keys(u, [[0, 0], [s[0], 0], [s[0] + 0.15, 1], [s[1], 1], [s[1] + 0.2, 0], [14, 0]]);
+    if (v > p[P.say]) {
+      p[P.say] = v;
+      p[P.sayKind] = s[2];
+    }
+  }
+  return p;
+}
+
+/// Eating out: napkin tucked in, a plate of biryani, nom nom. When the plate
+/// is empty: a burp, a belly pat, "আরেকটা!" and a fresh plate arrives.
+Pose _feast(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = _homeSit(c).set({
+    P.home: 0, P.shadow: 0.85,
+    P.napkin: easeOut(span(t, 0.3, 0.8)),
+    P.biryani: easeOut(span(t, 0, 0.5)),
+  });
+  if (t < 1.0) {
+    final s = _settle(p, t);
+    s[P.home] = 0;
+    s[P.napkin] = p[P.napkin];
+    s[P.biryani] = p[P.biryani];
+    return s;
+  }
+  final m = (t - 1) % 52;
+  final eating = m < 40 || m > 49;
+  final u = m % 4.5;
+  final lean = eating ? keys(u, [[0, 0], [0.5, 1], [1.3, 1], [1.7, 0]]) : 0.0;
+  final nib = eating && u > 0.5 && u < 1.3 ? math.max(0.0, math.sin((u - 0.5) * 18)) : 0.0;
+  final chew = eating && u > 1.6 && u < 4.0 ? 0.5 + 0.5 * math.sin(u * 16) : 0.0;
+  final full = keys(m, [[0, 0], [40, 0], [40.4, 1], [45.8, 1], [46.2, 0], [52, 0]]);
+  final pat = full * math.max(0.0, math.sin((m - 40) * 7));
+  final more = keys(m, [[0, 0], [46.0, 0], [46.3, 1], [48.0, 1], [48.3, 0], [52, 0]]);
+  final burp = keys(m, [[0, 0], [41.0, 0], [41.15, 1], [42.4, 1], [42.6, 0], [52, 0]]);
+  p.set({
+    P.bite: m < 48 ? clamp01(m / 40) : 1 - easeOut(span(m, 48, 48.7)),
+    P.bodyRot: -1.05 + 0.4 * lean - 0.12 * full, P.bodyX: -1 + 2 * lean,
+    P.bodyH: 12.5 + 1.3 * full,
+    P.headX: 6 + 9 * lean, P.headY: -45 + 21 * lean + 1.5 * nib * a, P.headRot: 0.55 * lean - 0.1 * full,
+    P.eyeOpen: lean > 0.5 ? 0.6 : (chew > 0 || full > 0.5 ? 0.05 : blink(c.time, 4.3)),
+    P.mouth: 0.3 * nib + 0.22 * chew + 0.5 * burp + 0.35 * more,
+    P.earFront: 0.1 * chew + 0.3 * more, P.earBack: 0.1 * chew + 0.3 * more,
+    // Belly pat with the near paw, then the paw goes up for another plate.
+    P.fnA1: 0.05 + 0.75 * full + 2.6 * more, P.fnA2: (1.2 + 0.25 * pat) * full + 0.3 * more,
+    P.squash: 0.07 * a * span(m, 41.0, 41.1) * (1 - span(m, 41.1, 41.35)),
+    P.exclaim: span(m, 48.1, 48.25) * (1 - span(m, 48.9, 49.2)),
+    P.tailCurl: 0.3 + 0.35 * math.max(0, math.sin(t * 2.4)) + 0.4 * full,
+  });
+  if (burp > p[P.say]) {
+    p[P.say] = burp;
+    p[P.sayKind] = 1;
+  }
+  if (more > p[P.say]) {
+    p[P.say] = more;
+    p[P.sayKind] = 10;
+  }
+  return p;
+}
+
+/// The bus stop: wait, look down the road, yawn. A bus! It roars past
+/// without stopping. "আরে!" A slump, and back to waiting. 16-second cycle.
+Pose _busWait(double t, ClipCtx c) {
+  final a = c.amp;
+  final p = _placeStand(c).set({P.busStop: easeOut(span(t, 0, 0.6)), P.rootX: 2});
+  final u = t % 16;
+  _alive(p, t, c);
+  final look = keys(u, [[0, 0], [0.6, 1], [3.2, 1], [3.6, 0], [14.8, 0], [15.4, 1], [16, 1]]);
+  final yawn = keys(u, [[0, 0], [4.0, 0], [4.5, 1], [5.4, 1], [5.9, 0], [16, 0]]);
+  final hear = keys(u, [[0, 0], [6.2, 0], [6.35, 1], [7.0, 1], [7.4, 0], [16, 0]]);
+  final bus = span(u, 6.8, 9.2);
+  final gust = keys(u, [[0, 0], [7.5, 0], [7.7, 1], [8.6, 1], [9.0, 0], [16, 0]]);
+  final are = keys(u, [[0, 0], [9.2, 0], [9.45, 1], [11.0, 1], [11.3, 0], [16, 0]]);
+  final slump = keys(u, [[0, 0], [11.2, 0], [11.8, 1], [14.4, 1], [15.0, 0], [16, 0]]);
+  final tap = math.max(0.0, math.sin(u * 9)) * (u < 3.6 || u > 15 ? 1 : 0);
+  p.set({
+    P.busX: bus,
+    P.quick: u > 6.7 && u < 9.3 ? 1 : 0,
+    // Looking back down the road for the bus.
+    P.headRot: -0.22 * look - 0.15 * gust + 0.05 * slump,
+    P.eyeLook: -1 * look + 0.6 * hear - 0.8 * gust,
+    P.headX: 25 - 2 * look, P.headY: p[P.headY] + 3 * slump,
+    P.eyeOpen: yawn > 0.4 ? 0.05 : (gust > 0.3 ? 0.25 : (slump > 0.5 ? 0.55 : blink(c.time, 4.1))),
+    P.mouth: 0.55 * yawn + 0.4 * are,
+    P.eyeWide: hear, P.exclaim: hear,
+    P.earFront: 0.4 * hear - 0.3 * slump, P.earBack: 0.4 * hear - 0.3 * slump,
+    P.earFlat: 0.8 * gust,
+    P.scarfFlow: 0.2 + 0.8 * gust, P.scarfPhase: c.time * (2 + 14 * gust),
+    P.dust: gust,
+    P.rootY: -5 * a * math.sin(math.pi * span(u, 6.3, 6.75)),
+    P.bodyRot: -0.06 * gust + 0.05 * slump,
+    P.bodyH: p[P.bodyH] - 0.6 * slump,
+    // Waves a paw after the bus.
+    P.fnA1: 2.5 * are, P.fnA2: (0.3 + 0.35 * math.sin(u * 14)) * are,
+    P.brow: 0.8 * are - 0.4 * slump,
+    // Tapping a back paw while waiting.
+    P.bnA1: -0.12 * tap * a,
+    P.tailCurl: 0.6 + 0.4 * math.sin(u * 3) * (1 - slump) - 0.3 * slump,
+  });
+  if (are > p[P.say]) {
+    p[P.say] = are;
+    p[P.sayKind] = 9;
+  }
+  return p;
+}
+
+/// The park: stalk a butterfly, pounce (miss!), sunbathe, then the butterfly
+/// lands on the cat's nose… "হাঁচ্চু!" 20-second cycle.
+Pose _park(double t, ClipCtx c) {
+  final a = c.amp;
+  final u = t % 20;
+  final crouch = standPose().set({
+    P.pinVis: 0, P.rootX: -8,
+    P.bodyY: -23, P.bodyRot: 0.08, P.headX: 26, P.headY: -37, P.headRot: -0.12,
+    P.legLen: 0.78, P.legLenB: 0.8, P.fnY: -19, P.ffY: -19, P.bnY: -20, P.bfY: -20,
+    P.eyeLook: 0.8, P.eyeOpen: 1, P.eyeWide: 0.5,
+    P.earFront: 0.25, P.earBack: 0.25,
+    P.scarfPhase: c.time * 2,
+  });
+  final sit = sitPose().set({P.pinVis: 0, P.rootX: -6, P.eyeOpen: blink(c.time, 4.3), P.scarfPhase: c.time * 2});
+  // Sunbathing: face up to the sun, eyes shut, a little smile.
+  final lie = sit.copy().set({
+    P.headX: 4, P.headY: -46, P.headRot: -0.38, P.eyeOpen: 0, P.mouth: 0.14,
+    P.earFront: -0.1, P.earBack: -0.05, P.tailCurl: 0.5,
+  });
+
+  // Which body pose: crouch, sunbathe, sit, crouch again.
+  Pose body;
+  if (u < 7.0) {
+    body = crouch;
+  } else if (u < 8.2) {
+    body = Pose.lerp(crouch, lie, easeInOut(span(u, 7.0, 8.2)));
+  } else if (u < 12.6) {
+    body = lie;
+  } else if (u < 13.6) {
+    body = Pose.lerp(lie, sit, easeInOut(span(u, 12.6, 13.6)));
+  } else if (u < 19.0) {
+    body = sit;
+  } else {
+    body = Pose.lerp(sit, crouch, easeInOut(span(u, 19.0, 20.0)));
+  }
+  final p = body.copy();
+  p.set({P.grass: easeOut(span(t, 0, 0.6)), P.sun: easeOut(span(t, 0.2, 0.9))});
+
+  // Butterfly flight: wandering, escape, return to the nose, scared off.
+  final nose = (dx: p[P.headX] + p[P.rootX] + 13, dy: p[P.headY] + p[P.rootY] - 3);
+  double fx, fy, fv = 1;
+  if (u < 5.4) {
+    fx = 34 + 9 * math.sin(u * 1.3) + 4 * math.sin(u * 3.1);
+    fy = -46 + 7 * math.sin(u * 1.9 + 1);
+  } else if (u < 7.0) {
+    final e = easeOut(span(u, 5.4, 7.0));
+    fx = 34 + 9 * math.sin(5.4 * 1.3) + 4 * math.sin(5.4 * 3.1) + 18 * e;
+    fy = -46 + 7 * math.sin(5.4 * 1.9 + 1) - 44 * e;
+    fv = 1 - span(u, 6.4, 7.0);
+  } else if (u < 13.8) {
+    fx = 60;
+    fy = -90;
+    fv = 0;
+  } else if (u < 15.6) {
+    final e = easeInOut(span(u, 13.8, 15.6));
+    fx = 58 + (nose.dx - 58) * e + 4 * math.sin(u * 5) * (1 - e);
+    fy = -80 + (nose.dy + 80) * e;
+    fv = span(u, 13.8, 14.3);
+  } else if (u < 17.3) {
+    fx = nose.dx;
+    fy = nose.dy;
+  } else {
+    final e = easeOut(span(u, 17.3, 18.6));
+    fx = nose.dx + 30 * e;
+    fy = nose.dy - 46 * e;
+    fv = 1 - span(u, 18.1, 18.6);
+  }
+  p.set({P.fly: fv, P.flyX: fx, P.flyY: fy});
+
+  if (u < 7.0) {
+    // Stalk: eyes follow it, a bottom wiggle, then the pounce.
+    final wiggle = keys(u, [[0, 0], [3.6, 0], [3.9, 1], [4.9, 1], [5.1, 0], [7, 0]]);
+    final pounce = span(u, 5.1, 5.9);
+    final hop = math.sin(math.pi * pounce);
+    p.set({
+      P.eyeLook: (fx - nose.dx).clamp(-12.0, 12.0) / 12,
+      P.headRot: -0.12 - 0.012 * (nose.dy - fy).clamp(-10.0, 25.0),
+      P.bodyRot: 0.08 + 0.05 * a * wiggle * math.sin(u * 22),
+      P.tailCurl: 0.6 + 0.3 * math.sin(u * 4) + 0.3 * wiggle * math.sin(u * 22),
+      P.rootY: -14 * a * hop, P.rootX: -8 + 12 * easeInOut(pounce) * (1 - span(u, 6.0, 7.0)),
+      P.fnA1: 2.3 * hop, P.ffA1: 2.1 * hop, P.fnA2: -0.4 * hop, P.ffA2: -0.4 * hop,
+      P.bnA1: -0.6 * hop, P.bfA1: -0.6 * hop,
+      P.quick: u > 3.6 && u < 6.4 ? 1 : 0,
+      P.question: span(u, 6.0, 6.2) * (1 - span(u, 6.8, 7.0)),
+    });
+  } else if (u < 12.6) {
+    // Sunbathing: slow tail, a happy "ahh…".
+    final ahh = keys(u, [[0, 0], [8.8, 0], [9.0, 1], [10.6, 1], [10.9, 0], [20, 0]]);
+    p.set({
+      P.say: ahh, P.sayKind: 5,
+      P.tailEndX: p[P.tailEndX] + 3 * math.sin(u * 1.2),
+      P.bodyH: p[P.bodyH] + 0.4 * math.sin(u * 1.8),
+    });
+  } else if (u >= 13.6 && u < 19.0) {
+    // The butterfly lands on the nose: cross-eyed, a tickle building, sneeze.
+    final land = span(u, 15.4, 15.6);
+    final build = keys(u, [[0, 0], [15.8, 0], [16.3, 0.5], [16.6, 0.3], [17.1, 1], [17.2, 0], [20, 0]]);
+    final sneeze = keys(u, [[0, 0], [17.15, 0], [17.25, 1], [17.6, 0.6], [18.6, 0], [20, 0]]);
+    final say = keys(u, [[0, 0], [17.2, 0], [17.3, 1], [18.5, 1], [18.8, 0], [20, 0]]);
+    p.set({
+      P.eyeLook: 0.4 + 0.6 * land,
+      P.eyeOpen: build > 0.6 ? 0.2 : (sneeze > 0.5 ? 0.05 : 1),
+      P.eyeWide: 0.6 * land * (1 - sneeze),
+      P.headY: p[P.headY] + 1.5 * build - 3 * sneeze * a,
+      P.headRot: -0.12 * build + 0.3 * sneeze * a,
+      P.mouth: 0.15 * build + 0.5 * sneeze,
+      P.squash: 0.06 * a * sneeze,
+      P.earFront: 0.3 * land - 0.3 * sneeze, P.earBack: 0.3 * land - 0.3 * sneeze,
+      P.say: say, P.sayKind: 11,
+      P.quick: u > 17.1 && u < 18.7 ? 1 : 0,
+    });
+  }
   return p;
 }

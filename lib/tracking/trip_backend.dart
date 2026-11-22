@@ -53,6 +53,9 @@ class LocalBackend implements TripBackend {
       case 'place':
         await runner.store.reload();
         runner.placeChanged(PlaceKind.values.firstWhere((k) => k.name == args?['kind']));
+      case 'customPlaces':
+        await runner.store.reload();
+        runner.customPlacesChanged();
       case 'avatar':
         await runner.store.reload(); // the share sends the avatar id with every push
       case 'status':

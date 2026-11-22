@@ -23,6 +23,10 @@ class CatDirector {
   static const homeActivities = [ClipId.sleep, ...homeLife];
   static bool isHomeLife(ClipId c) => homeLife.contains(c);
 
+  /// Scenes at pins from "More places".
+  static const placeScenes = [ClipId.bazar, ClipId.feast, ClipId.busWait, ClipId.park];
+  static bool isPlaceScene(ClipId c) => placeScenes.contains(c);
+
   /// What the cat does at home during the minute containing [now]: a shuffled
   /// order that never repeats an activity twice in a row. At night it sleeps.
   static ClipId homeActivityAt(DateTime now) {
@@ -58,6 +62,7 @@ class CatDirector {
       _queue.isEmpty &&
       !(_blendFrom != null && _blendT < 1) &&
       _boop >= 1.1 &&
+      _last[P.quick] < 0.5 &&
       (_facing.abs() - 1).abs() < 0.001;
 
   /// Lets the next home activity start now instead of after [homeMinStay]
@@ -107,6 +112,10 @@ class CatDirector {
         CatMode.studying => ClipId.study,
         CatMode.hangingOut => ClipId.vibe,
         CatMode.jammed => ClipId.jam,
+        CatMode.atBazar => ClipId.bazar,
+        CatMode.eatingOut => ClipId.feast,
+        CatMode.atBusStop => ClipId.busWait,
+        CatMode.atPark => ClipId.park,
       };
 
   /// The loop "family" a clip belongs to (what we are coming out of).
@@ -123,7 +132,8 @@ class CatDirector {
         ClipId.jamOn || ClipId.jam || ClipId.jamDance || ClipId.jamOff => ClipId.jam,
         ClipId.tuckInHome => ClipId.sleep,
         ClipId.homeStroll || ClipId.homeWake => ClipId.lounge,
-        ClipId.leaveHome => ClipId.walk,
+        ClipId.leaveHome || ClipId.leavePlace => ClipId.walk,
+        ClipId.bazar || ClipId.feast || ClipId.busWait || ClipId.park => c,
         ClipId.bath || ClipId.eat || ClipId.potty || ClipId.lounge || ClipId.gaming => c,
       };
 
@@ -150,6 +160,8 @@ class CatDirector {
         out.add(staying ? ClipId.homeStroll : ClipId.leaveHome);
       case ClipId.vibe:
         out.add(ClipId.headphonesOff);
+      case ClipId.bazar || ClipId.feast || ClipId.busWait || ClipId.park:
+        out.add(ClipId.leavePlace);
       case ClipId.jam:
         out.add(ClipId.jamOff);
       case ClipId.fast:
@@ -218,7 +230,14 @@ class CatDirector {
     _blendFrom = _last.copy();
     _blendT = 0;
     // Home changes glide a little slower so props fade instead of popping.
-    _blendDur = homeActivities.contains(c) || c == ClipId.homeStroll || c == ClipId.leaveHome || c == ClipId.tuckInHome ? 0.6 : 0.22;
+    _blendDur = homeActivities.contains(c) ||
+            isPlaceScene(c) ||
+            c == ClipId.homeStroll ||
+            c == ClipId.leaveHome ||
+            c == ClipId.tuckInHome ||
+            c == ClipId.leavePlace
+        ? 0.6
+        : 0.22;
     _clip = c;
     _clipT = 0;
     history.add(c);
@@ -273,7 +292,8 @@ class CatDirector {
           ..add(ClipId.jam);
         _start(ClipId.jamDance);
         return true;
-      case ClipId.bath || ClipId.eat || ClipId.potty || ClipId.lounge || ClipId.gaming:
+      case ClipId.bath || ClipId.eat || ClipId.potty || ClipId.lounge || ClipId.gaming ||
+            ClipId.bazar || ClipId.feast || ClipId.busWait || ClipId.park:
         if (_boop < 1.1) return false;
         _boop = 0; // startled: a hop and a "!" without leaving what it's doing
         return true;
@@ -324,7 +344,9 @@ class CatDirector {
         baseOf(_clip) == ClipId.study && !(_clip == ClipId.closeBook && _clipT > 1.0) ||
         baseOf(_clip) == ClipId.vibe && !(_clip == ClipId.headphonesOff && _clipT > 0.9) ||
         isHomeLife(_clip) || _clip == ClipId.homeStroll || _clip == ClipId.homeWake ||
-        _clip == ClipId.leaveHome && _clipT < 0.5;
+        _clip == ClipId.leaveHome && _clipT < 0.5 ||
+        isPlaceScene(_clip) ||
+        _clip == ClipId.leavePlace && _clipT < 0.5;
     final target = forceRight ? 1.0 : _facingTarget;
     final step = dt / 0.22 * 2;
     _facing += (target - _facing).clamp(-step, step);

@@ -35,6 +35,10 @@ class _PreviewScreenState extends State<PreviewScreen> with SingleTickerProvider
     ('Hangout', CatMode.hangingOut),
     ('Traffic jam', CatMode.jammed),
     ('Lost signal', CatMode.lost),
+    ('Bazar', CatMode.atBazar),
+    ('Restaurant', CatMode.eatingOut),
+    ('Bus stop', CatMode.atBusStop),
+    ('Park', CatMode.atPark),
   ];
 
   /// Minutes added to the real clock, so "Next home activity" can skip ahead.

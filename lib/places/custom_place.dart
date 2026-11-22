@@ -81,4 +81,19 @@ const placeIcons = <PlaceIcon>[
   PlaceIcon('pin', Icons.place, Color(0xFF555B6E), 'অন্যান্য', 'Other'),
 ];
 
+/// What GoliCat does after a minute at a pin with this icon (for the editor).
+String catActivityFor(String key) => switch (key) {
+      'home' => 'GoliCat goes about its home day: bath, food, phone, games, naps',
+      'work' => 'GoliCat clocks in at its desk',
+      'school' => 'GoliCat puts on its glasses and does homework',
+      'tea' => 'GoliCat sits down for a cha break',
+      'friends' || 'family' => 'GoliCat puts on headphones and hangs out',
+      'bazar' => 'GoliCat haggles for a fish: কত? না না!',
+      'food' => 'GoliCat tucks in a napkin and eats biryani',
+      'bus' => "GoliCat waits for the bus… which doesn't stop",
+      'park' => 'GoliCat chases a butterfly and sunbathes',
+      'mosque' || 'temple' || 'church' => 'Just a pin on your map',
+      _ => 'Just a pin on your map for now',
+    };
+
 PlaceIcon placeIconOf(String key) => placeIcons.firstWhere((i) => i.key == key, orElse: () => placeIcons.last);

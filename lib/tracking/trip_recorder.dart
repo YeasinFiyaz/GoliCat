@@ -141,6 +141,14 @@ List<ComicPanel> comicFor(TripLog log) {
     pause = const ComicPanel(ClipId.eat, 1.8, 'Rice and fish. Nom.');
   } else if (clips.contains(ClipId.lounge)) {
     pause = const ComicPanel(ClipId.lounge, 6.2, 'Scrolling. Ha ha.');
+  } else if (clips.contains(ClipId.busWait)) {
+    pause = const ComicPanel(ClipId.busWait, 9.8, 'The bus didn\'t stop. আরে!');
+  } else if (clips.contains(ClipId.park)) {
+    pause = const ComicPanel(ClipId.park, 17.4, 'A butterfly on the nose. হাঁচ্চু!');
+  } else if (clips.contains(ClipId.bazar)) {
+    pause = const ComicPanel(ClipId.bazar, 4.3, 'Fish prices at the bazar?!');
+  } else if (clips.contains(ClipId.feast)) {
+    pause = const ComicPanel(ClipId.feast, 47.0, 'Biryani. Then আরেকটা!');
   } else if (clips.contains(ClipId.grumpy)) {
     pause = const ComicPanel(ClipId.grumpy, 1.4, 'Five more minutes…');
   }
@@ -163,6 +171,14 @@ List<ComicPanel> comicFor(TripLog log) {
       ending = const ComicPanel(ClipId.lounge, 6.2, 'Home. Scrolling. Ha ha.');
     case ClipId.gaming:
       ending = const ComicPanel(ClipId.gaming, 4.0, 'Home. One more game…');
+    case ClipId.bazar:
+      ending = const ComicPanel(ClipId.bazar, 11.0, 'Got the fish. Good deal!');
+    case ClipId.feast:
+      ending = const ComicPanel(ClipId.feast, 42.0, 'Full of biryani. Burp.');
+    case ClipId.busWait:
+      ending = const ComicPanel(ClipId.busWait, 2.0, 'Still waiting for the bus…');
+    case ClipId.park:
+      ending = const ComicPanel(ClipId.park, 9.5, 'Sunbathing in the park. Ahh…');
     case ClipId.homeStroll:
     case ClipId.homeWake:
       ending = const ComicPanel(ClipId.homeStroll, 0.5, 'Home sweet home.');
@@ -197,6 +213,7 @@ List<ComicPanel> comicFor(TripLog log) {
     case ClipId.leaveOffice:
     case ClipId.wakeUp:
     case ClipId.leaveHome:
+    case ClipId.leavePlace:
       ending = const ComicPanel(ClipId.walk, 0.3, 'Still trotting. Trip over!');
     default:
       ending = const ComicPanel(ClipId.idle, 0.2, 'Journey\'s end.');

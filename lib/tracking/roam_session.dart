@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../cat/cat_director.dart';
 import '../cat/cat_source.dart';
 import '../core/position_glide.dart';
+import '../places/custom_place.dart';
 import '../places/place_store.dart';
 import 'activity_engine.dart';
 import 'fix.dart';
@@ -19,10 +20,11 @@ class RoamSession extends ChangeNotifier implements CatSource {
     Place? home,
     Place? education,
     Place? hangout,
+    List<CustomPlace> custom = const [],
     this.tuning = const Tuning(),
     bool reducedMotion = false,
     TripLog? previous,
-  })  : engine = ActivityEngine(office: office, home: home, education: education, hangout: hangout, tuning: tuning),
+  })  : engine = ActivityEngine(office: office, home: home, education: education, hangout: hangout, custom: custom, tuning: tuning),
         director = CatDirector(reducedMotion: reducedMotion) {
     log = previous ?? TripLog(startedAt: clock());
     director.onClipStart = (c) {
@@ -72,6 +74,11 @@ class RoamSession extends ChangeNotifier implements CatSource {
 
   void setPlace(PlaceKind which, Place? p) {
     engine.monitor(which).placeChanged(p);
+    evaluate();
+  }
+
+  void setCustomPlaces(List<CustomPlace> list) {
+    engine.setCustomPlaces(list);
     evaluate();
   }
 

@@ -1,4 +1,5 @@
 import '../core/geo.dart';
+import '../places/custom_place.dart';
 import '../places/place_store.dart';
 import 'fix.dart';
 import 'motion_engine.dart';
@@ -7,7 +8,12 @@ import 'tuning.dart';
 
 /// What GoliCat should be doing. The animation layer turns changes between
 /// these into visible transitions (stash the tea, skid, hop onto the chair…).
-enum CatMode { starting, idle, waiting, walking, fast, lost, atWork, atHome, studying, hangingOut, jammed }
+/// Names travel to share viewers: only ever add, never rename.
+enum CatMode {
+  starting, idle, waiting, walking, fast, lost, atWork, atHome, studying, hangingOut, jammed,
+  // At a pin from "More places".
+  atBazar, eatingOut, atBusStop, atPark,
+}
 
 class ActivitySnapshot {
   const ActivitySnapshot({
@@ -34,14 +40,23 @@ class ActivitySnapshot {
 
 /// Pure decision logic: fixes + time in, [CatMode] out. No plugins, no UI.
 class ActivityEngine {
-  ActivityEngine({Place? office, Place? home, Place? education, Place? hangout, this.tuning = const Tuning()})
+  ActivityEngine({
+    Place? office,
+    Place? home,
+    Place? education,
+    Place? hangout,
+    List<CustomPlace> custom = const [],
+    this.tuning = const Tuning(),
+  })
       : motion = MotionEngine(tuning),
         monitors = {
           PlaceKind.office: PlaceMonitor(office, tuning),
           PlaceKind.home: PlaceMonitor(home, tuning),
           PlaceKind.education: PlaceMonitor(education, tuning),
           PlaceKind.hangout: PlaceMonitor(hangout, tuning),
-        };
+        } {
+    setCustomPlaces(custom);
+  }
 
   final Tuning tuning;
   final MotionEngine motion;
@@ -60,6 +75,50 @@ class ActivityEngine {
         PlaceKind.education => CatMode.studying,
         PlaceKind.hangout => CatMode.hangingOut,
       };
+  /// Pins from "More places" that have an activity, by pin id.
+  final Map<String, PlaceMonitor> customMonitors = {};
+  final Map<String, CatMode> _customModes = {};
+
+  /// Circle size for a pin (the user doesn't set one).
+  static const customRadiusM = 75.0;
+
+  /// What the cat does at a pin with this icon; null = nothing special
+  /// (prayer places, and pins whose scene isn't made yet).
+  static CatMode? modeForIcon(String icon) => switch (icon) {
+        'home' => CatMode.atHome,
+        'work' => CatMode.atWork,
+        'school' => CatMode.studying,
+        'tea' => CatMode.waiting,
+        'friends' || 'family' => CatMode.hangingOut,
+        'bazar' => CatMode.atBazar,
+        'food' => CatMode.eatingOut,
+        'bus' => CatMode.atBusStop,
+        'park' => CatMode.atPark,
+        _ => null,
+      };
+
+  /// Adds, moves or drops pin watchers; an unchanged pin keeps its state.
+  void setCustomPlaces(List<CustomPlace> list) {
+    final keep = <String>{};
+    for (final c in list) {
+      final m = modeForIcon(c.icon);
+      if (m == null) continue;
+      keep.add(c.id);
+      _customModes[c.id] = m;
+      final place = Place(center: c.center, radiusM: customRadiusM);
+      final mon = customMonitors[c.id];
+      if (mon == null) {
+        customMonitors[c.id] = PlaceMonitor(place, tuning);
+      } else if (mon.place?.center.lat != place.center.lat || mon.place?.center.lng != place.center.lng) {
+        mon.placeChanged(place);
+      }
+    }
+    customMonitors.removeWhere((id, _) => !keep.contains(id));
+    _customModes.removeWhere((id, _) => !keep.contains(id));
+  }
+
+  Iterable<PlaceMonitor> get _allMonitors => [...monitors.values, ...customMonitors.values];
+
   DateTime? _startedAt;
   CatMode _mode = CatMode.starting;
 
@@ -67,7 +126,7 @@ class ActivityEngine {
 
   void start(DateTime now) {
     motion.reset();
-    for (final m in monitors.values) {
+    for (final m in _allMonitors) {
       m.reset();
     }
     _startedAt = now;
@@ -84,6 +143,10 @@ class ActivityEngine {
         final ev = e.value.addFix(f, snap);
         if (ev != null) events.add('${e.key.label}:$ev');
       }
+      for (final e in customMonitors.entries) {
+        final ev = e.value.addFix(f, snap);
+        if (ev != null) events.add('pin:$ev');
+      }
     }
     return events;
   }
@@ -92,9 +155,12 @@ class ActivityEngine {
     final m = motion.snapshot(now);
     CatMode mode;
     final here = _priority.where((k) => monitor(k).present).firstOrNull;
+    final pin = customMonitors.entries.where((e) => e.value.present).firstOrNull;
     if (here != null) {
       // Being at a place beats the ordinary modes, and survives indoor GPS loss.
       mode = modeAt(here);
+    } else if (pin != null) {
+      mode = _customModes[pin.key]!;
     } else if (m.position == null) {
       final waited = _startedAt == null ? Duration.zero : now.difference(_startedAt!);
       mode = waited > tuning.staleAfter ? CatMode.lost : CatMode.starting;
@@ -130,7 +196,7 @@ class ActivityEngine {
   /// True when the phone may sample less often (still for a while, or settled at a place).
   bool wantsSlowSampling(DateTime now) {
     final m = motion.snapshot(now);
-    if (monitors.values.any((p) => p.present)) return m.kind == MotionKind.stationary;
+    if (_allMonitors.any((p) => p.present)) return m.kind == MotionKind.stationary;
     return m.kind == MotionKind.stationary &&
         m.stationarySince != null &&
         now.difference(m.stationarySince!) >= tuning.slowSamplingAfter;

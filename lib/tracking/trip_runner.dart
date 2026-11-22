@@ -65,6 +65,7 @@ class TripRunner {
       home: store.place(PlaceKind.home),
       education: store.place(PlaceKind.education),
       hangout: store.place(PlaceKind.hangout),
+      custom: store.customPlaces,
       reducedMotion: store.reducedMotion,
       previous: previous,
     );
@@ -121,6 +122,11 @@ class TripRunner {
 
   void placeChanged(PlaceKind k) {
     session?.setPlace(k, store.place(k));
+    _emit();
+  }
+
+  void customPlacesChanged() {
+    session?.setCustomPlaces(store.customPlaces);
     _emit();
   }
 

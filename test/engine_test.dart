@@ -148,7 +148,7 @@ void main() {
       }
     });
 
-    test('arriving and staying clocks in after about two minutes', () {
+    test('arriving and staying clocks in after about a minute', () {
       final e = eng();
       int? at;
       for (var s = 0; s <= 400; s++) {
@@ -157,7 +157,7 @@ void main() {
         if (at == null && e.evaluate(_t0.add(Duration(seconds: s))).mode == CatMode.atWork) at = s;
       }
       expect(at, isNotNull);
-      expect(at!, inInclusiveRange(120, 220));
+      expect(at!, inInclusiveRange(60, 160));
     });
 
     test('indoor drift near the boundary does not flip-flop', () {

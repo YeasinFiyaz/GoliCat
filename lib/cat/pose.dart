@@ -38,10 +38,18 @@ enum P {
   say, sayKind,
   // Polish: ears pressed flat by the wind; blowing on hot cha.
   earFlat, blow,
+  // Places from "More places": the fish stall, eating out, the bus stop, the park.
+  stall, stallFish, bag,
+  napkin, biryani,
+  busStop, busX,
+  grass, sun, fly, flyX, flyY,
+  // 1 while something fast is on screen (a bus, a pounce): draw at full frame rate.
+  quick,
 }
 
-/// Words the cat can say at home ([P.sayKind] indexes this list).
-const homeSayings = ['ha ha', 'burp!', 'plop', 'yesss!', 'nooo', 'ahh…'];
+/// Words the cat can say ([P.sayKind] indexes this list; only ever append).
+const homeSayings = ['ha ha', 'burp!', 'plop', 'yesss!', 'nooo', 'ahh…',
+    'কত?', 'না না!', 'ঠিক আছে', 'আরে!', 'আরেকটা!', 'হাঁচ্চু!'];
 
 class Pose {
   Pose._(this.v);
