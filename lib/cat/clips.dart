@@ -213,24 +213,43 @@ Pose _walkCycle(double t, ClipCtx c, {double hz = 2.1, double swing = 0.42}) {
 }
 
 Pose _fastCycle(double t, ClipCtx c) {
+  // A rotary gallop: the spine gathers (all four paws under the body) and
+  // stretches out (front paws reaching, hind legs pushing back), with a short
+  // flight after each push. The head stays level, the way a real cat's does,
+  // and the ears lie back in the wind instead of folding over.
   final a = c.amp;
-  final ph = 2 * math.pi * t * 3.3 * c.cadence;
+  final ph = 2 * math.pi * t * 3.1 * c.cadence;
+  final ext = math.cos(ph); // 1 stretched out, -1 gathered
+  double leg(double off) => math.cos(ph + off);
+  double fold(double off, {bool hind = false}) =>
+      math.max(0.0, hind ? math.sin(ph + off) : -math.sin(ph + off));
   final p = standPose();
   p.set({
     P.pinVis: 0,
-    P.bodyX: 2, P.bodyRot: 0.1, P.bodyLen: 23 + 1.5 * a * math.sin(ph),
-    P.bodyY: -27 - 2 * a * math.sin(2 * ph).abs(),
-    P.headX: 31, P.headY: -39 - 1.2 * a * math.sin(2 * ph).abs(), P.headRot: 0.15,
-    P.earFront: 1.05, P.earBack: 1.1, P.eyeOpen: 0.8, P.brow: -0.5,
-    P.fnX: 15, P.ffX: 11, P.bnX: -12, P.bfX: -16,
-    P.fnA1: 0.85 * a * math.sin(ph), P.fnA2: -0.6 * a * math.max(0, math.cos(ph)),
-    P.ffA1: 0.85 * a * math.sin(ph + 0.5), P.ffA2: -0.6 * a * math.max(0, math.cos(ph + 0.5)),
-    P.bnA1: 0.85 * a * math.sin(ph + math.pi), P.bnA2: 0.6 * a * math.max(0, -math.cos(ph)),
-    P.bfA1: 0.85 * a * math.sin(ph + math.pi + 0.5), P.bfA2: 0.6 * a * math.max(0, -math.cos(ph + 0.5)),
-    P.tailX: -21, P.tailY: -30, P.tailEndX: -22, P.tailEndY: -5,
-    P.tailBend: 2 + math.sin(ph), P.tailCurl: 0.1,
+    P.bodyX: 2, P.bodyRot: 0.08 + 0.07 * a * math.sin(ph + 0.4),
+    P.bodyLen: 23 + 3.2 * a * ext,
+    P.bodyH: 11.2 - 0.5 * a * ext,
+    P.bodyY: -27.5 - 1.2 * a * math.max(0, ext),
+    // Head level: it moves far less than the body.
+    P.headX: 31 + 1.8 * a * ext, P.headY: -40.5 - 0.5 * a * math.sin(ph), P.headRot: 0.1 - 0.04 * a * math.sin(ph + 0.4),
+    P.earFront: 0.62 + 0.06 * math.sin(ph * 2 + 0.3), P.earBack: 0.68 + 0.06 * math.sin(ph * 2 + 1.1),
+    P.earFlat: 0.35,
+    P.eyeOpen: 0.82 * blink(c.time, 3.7), P.brow: -0.25, P.eyeLook: 0.4,
+    P.mouth: 0.04,
+    P.fnX: 15 + 1.5 * a * ext, P.ffX: 11 + 1.5 * a * ext, P.bnX: -12 - 1.5 * a * ext, P.bfX: -16 - 1.5 * a * ext,
+    // Front pair reaches forward when stretched; the far paw leads a beat behind.
+    P.fnA1: 0.95 * a * leg(0), P.fnA2: -1.1 * a * fold(0),
+    P.ffA1: 0.95 * a * leg(0.45), P.ffA2: -1.1 * a * fold(0.45),
+    // Hind pair pushes back when stretched, swings forward folded when gathered.
+    P.bnA1: -0.85 * a * leg(0.25), P.bnA2: 0.95 * a * fold(0.25, hind: true),
+    P.bfA1: -0.85 * a * leg(0.7), P.bfA2: 0.95 * a * fold(0.7, hind: true),
+    // The tail streams out behind with a wave running down it.
+    P.tailX: -21, P.tailY: -30, P.tailEndX: -23 - 1.5 * a * ext, P.tailEndY: -8 + 3 * math.sin(ph - 1.2),
+    P.tailBend: 3 * math.sin(ph - 0.6), P.tailCurl: 0.15 + 0.1 * math.sin(ph - 1.8),
     P.scarfFlow: 1, P.scarfPhase: c.time * 16,
-    P.speedLines: a, P.rootY: -1.5 * a * math.sin(ph).abs(), P.shadow: 0.9,
+    // Flight just after the hind push; a soft landing on the front paws.
+    P.speedLines: a, P.rootY: -3.2 * a * math.max(0, math.sin(ph + 1.1)), P.shadow: 0.85 + 0.1 * math.min(0, math.sin(ph + 1.1)),
+    P.squash: 0.03 * a * math.max(0, -math.sin(ph + 1.1)),
   });
   return p;
 }
@@ -332,34 +351,10 @@ Pose sampleClip(ClipId id, double t, ClipCtx c) {
       return p;
 
     case ClipId.sitDown:
-      final p = Pose.lerp(standPose(), sitPose(), easeInOut(span(t, 0, 0.6)));
-      final pull = easeInOut(span(t, 0.65, 1.3));
-      p.set({
-        P.cha: span(t, 0.7, 0.9),
-        P.steam: span(t, 1.0, 1.4),
-        P.fnA1: 0.05 + (_hold.a1 - 0.05) * pull,
-        P.fnA2: _hold.a2 * pull,
-        P.eyeOpen: blink(c.time),
-        P.scarfPhase: c.time * 2,
-      });
-      return p;
+      return _sitDown(t, c);
 
     case ClipId.tea:
-      final u = t % 5;
-      final p = _teaHold(c);
-      final lift = keys(u, [[0, 0], [1.4, 0], [2.0, 1], [3.1, 1], [3.6, 0], [5, 0]]);
-      final sip = keys(u, [[0, 0], [2.0, 0], [2.3, 1], [3.0, 1], [3.3, 0], [5, 0]]);
-      p.set({
-        P.fnA1: _hold.a1 + (_sip.a1 - _hold.a1) * lift,
-        P.fnA2: _hold.a2 + (_sip.a2 - _hold.a2) * lift,
-        P.chaTilt: 0.55 * sip,
-        P.headRot: -0.15 * sip * a,
-        P.eyeOpen: sip > 0.3 ? 0.05 : (u > 3.6 ? 0.45 : blink(c.time, 4.1)),
-        P.earFront: 0.2 * sip, P.earBack: 0.2 * sip,
-        P.mouth: u > 3.6 && u < 4.4 ? 0.25 : 0,
-        P.tailCurl: 0.3 + 0.3 * math.max(0, math.sin(t * 3)),
-      });
-      return p;
+      return _teaBreak(t, c);
 
     case ClipId.stashTea:
       final p = _teaHold(c);
@@ -1114,5 +1109,84 @@ Pose _gaming(double t, ClipCtx c) {
       });
     }
   }
+  return p;
+}
+
+// ---------------------------------------------------------------------------
+// Cha break
+
+/// Stand → sit for cha: hindquarters lower first, the front settles with a
+/// small bounce, the tail sweeps round the paws, then the glass comes up.
+Pose _sitDown(double t, ClipCtx c) {
+  final a = c.amp;
+  final stand = standPose();
+  final sit = sitPose();
+  // Back end goes down first, front follows: two blends, not one.
+  final hind = easeInOut(span(t, 0.05, 0.6));
+  final front = easeInOut(span(t, 0.2, 0.7));
+  final p = Pose.lerp(stand, sit, front);
+  for (final k in [P.bnX, P.bnY, P.bnA1, P.bnA2, P.bfX, P.bfY, P.bfA1, P.bfA2, P.legLenB, P.haunch]) {
+    p[k] = stand[k] + (sit[k] - stand[k]) * hind;
+  }
+  // The rear can't pass through the floor while the legs fold.
+  p[P.bodyY] = stand[P.bodyY] + (sit[P.bodyY] - stand[P.bodyY]) * math.max(hind * 0.8, front);
+  final tail = easeInOut(span(t, 0.45, 0.95));
+  for (final k in [P.tailX, P.tailY, P.tailEndX, P.tailEndY, P.tailBend, P.tailCurl]) {
+    p[k] = stand[k] + (sit[k] - stand[k]) * tail;
+  }
+  // Settle: a tiny squash and recovery as the weight lands.
+  final land = span(t, 0.62, 0.95);
+  p[P.squash] = 0.05 * a * math.sin(math.pi * land);
+  p[P.headY] += 1.4 * a * math.sin(math.pi * land);
+  // Glance down at the glass, then the paw brings it up to the chest; the
+  // glass only shows once it is in the paw, close to the body.
+  final glance = easeInOut(span(t, 0.7, 0.9)) * (1 - easeInOut(span(t, 1.05, 1.35)));
+  final lift = easeInOut(span(t, 0.8, 1.25));
+  p.set({
+    P.pinVis: 1 - span(t, 0, 0.12),
+    P.headRot: 0.2 * glance,
+    P.eyeLook: 0.5 * glance,
+    P.fnA1: 0.05 + (_hold.a1 - 0.05) * lift,
+    P.fnA2: _hold.a2 * lift,
+    P.cha: span(t, 1.05, 1.2),
+    P.steam: span(t, 1.2, 1.4),
+    P.eyeOpen: blink(c.time),
+    P.scarfPhase: c.time * 2,
+  });
+  return p;
+}
+
+/// The cha break itself: a 14-second cycle that never feels like a loop —
+/// blow on the hot glass, careful sip, a contented "ahh", watching the street,
+/// another sip, a slow happy blink. Breathing and a tail-tip twitch underneath.
+Pose _teaBreak(double t, ClipCtx c) {
+  final a = c.amp;
+  final u = t % 14;
+  final p = _teaHold(c);
+  final lift = keys(u, [[0, 0], [1.0, 0], [1.6, 1], [3.6, 1], [4.1, 0], [8.4, 0], [8.9, 1], [10.2, 1], [10.6, 0], [14, 0]]);
+  final blow = keys(u, [[0, 0], [1.6, 0], [1.8, 1], [2.5, 1], [2.7, 0], [14, 0]]);
+  final sip = keys(u, [[0, 0], [2.8, 0], [3.05, 1], [3.5, 1], [3.7, 0], [8.9, 0], [9.15, 1], [9.9, 1], [10.1, 0], [14, 0]]);
+  final ahh = keys(u, [[0, 0], [4.1, 0], [4.4, 1], [5.4, 1], [5.9, 0], [14, 0]]);
+  final look = keys(u, [[0, 0], [6.0, 0], [6.4, -1], [7.4, -1], [7.8, 0.5], [8.2, 0.5], [8.4, 0], [14, 0]]);
+  final slowBlink = keys(u, [[0, 1], [11.2, 1], [11.6, 0.05], [12.3, 0.05], [12.8, 1], [14, 1]]);
+  final breathe = math.sin(2 * math.pi * t / 3.2);
+  p.set({
+    P.fnA1: _hold.a1 + (_sip.a1 - _hold.a1) * lift,
+    P.fnA2: _hold.a2 + (_sip.a2 - _hold.a2) * lift,
+    P.chaTilt: 0.55 * sip,
+    P.blow: blow,
+    P.steam: 1 - 0.3 * sip,
+    P.mouth: 0.18 * blow + 0.22 * ahh,
+    P.headRot: -0.15 * sip * a - 0.06 * ahh + 0.18 * look,
+    P.headY: -45 + 0.8 * ahh,
+    P.eyeLook: look,
+    P.eyeOpen: sip > 0.3 ? 0.05 : (ahh > 0.3 ? 0.35 : blink(c.time, 4.1) * slowBlink),
+    P.earFront: 0.2 * sip - 0.12 * ahh + 0.5 * keys(u, [[0, 0], [7.0, 0], [7.08, 1], [7.25, 0], [14, 0]]),
+    P.earBack: 0.2 * sip - 0.12 * ahh,
+    P.bodyH: 12.5 + 0.35 * breathe - 0.5 * ahh,
+    P.squash: 0.012 * a * breathe,
+    P.tailCurl: 0.3 + 0.25 * math.max(0, math.sin(t * 2.1)) + 0.2 * ahh,
+    P.tailEndX: 25 + 1.5 * math.sin(t * 0.9),
+  });
   return p;
 }

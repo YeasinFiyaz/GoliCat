@@ -8,6 +8,9 @@ class PositionGlide {
 
   GeoPoint? get shown => _shown;
 
+  /// True while the drawn position is still sliding to the latest fix.
+  bool get gliding => _to != null && _t < 1;
+
   void target(GeoPoint p, DateTime at) {
     if (_to == p) return;
     if (_shown == null) {

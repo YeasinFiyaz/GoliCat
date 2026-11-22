@@ -36,6 +36,8 @@ enum P {
   phone, scroll,
   tv, gamepad, mash, win,
   say, sayKind,
+  // Polish: ears pressed flat by the wind; blowing on hot cha.
+  earFlat, blow,
 }
 
 /// Words the cat can say at home ([P.sayKind] indexes this list).

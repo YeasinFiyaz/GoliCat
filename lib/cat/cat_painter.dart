@@ -723,7 +723,8 @@ class _CatDraw {
   void _ear(Offset base, Offset tip, double back, {bool far = false}) {
     final ang = -back * 1.0;
     final b = base;
-    final t = b + _rot(tip - b, ang);
+    // Wind presses the ears flatter (shorter), as well as back.
+    final t = b + _rot(tip - b, ang) * (1 - 0.3 * p[P.earFlat].clamp(0.0, 1.0));
     final w = 5.4;
     final dir = (t - b);
     final perp = Offset(-dir.dy, dir.dx) / dir.distance;
@@ -870,8 +871,11 @@ class _CatDraw {
         final x = paw.dx - 1 + i * 2.4;
         final y0 = paw.dy - 6;
         final path = Path()..moveTo(x, y0);
+        final blow = p[P.blow].clamp(0.0, 1.0);
         for (var k = 1; k <= 4; k++) {
-          path.lineTo(x + math.sin(t * 1.3 + k + i) * 1.3, y0 - k * 2.4);
+          // Blowing bends the steam away from the face.
+          path.lineTo(x + math.sin(t * 1.3 + k + i) * 1.3 * (1 - 0.6 * blow) + blow * k * k * 0.9,
+              y0 - k * 2.4 * (1 - 0.35 * blow));
         }
         c.drawPath(path, sp);
       }

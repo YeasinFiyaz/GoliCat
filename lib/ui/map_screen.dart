@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../cat/cat_layer.dart';
 import '../cat/cat_skin.dart';
 import '../core/geo.dart';
+import '../places/custom_place.dart';
 import '../places/place_store.dart';
 import '../share/share_controller.dart';
 import '../tracking/activity_engine.dart';
@@ -16,6 +17,8 @@ import '../tracking/location_service.dart';
 import '../tracking/place_monitor.dart';
 import '../tracking/trip_recorder.dart';
 import '../tracking/trip_runner.dart';
+import '../update/update_dialog.dart';
+import '../update/updater.dart';
 import 'avatar_screen.dart';
 import 'busy.dart';
 import 'comic_screen.dart';
@@ -51,12 +54,20 @@ class MapScreen extends StatefulWidget {
 }
 
 class _PlaceDraft {
-  _PlaceDraft(this.kind, this.center, this.radius, {required this.existing});
-  final PlaceKind kind;
+  _PlaceDraft(this.kind, this.center, this.radius, {required this.existing, this.custom});
+
+  /// One of the four places the cat reacts to, or null for a custom place.
+  final PlaceKind? kind;
+
+  /// The custom place being added or edited (name and icon).
+  CustomPlace? custom;
   GeoPoint center;
   double radius;
   final bool existing;
 }
+
+/// What the place chooser returns for "More places".
+const _more = 'more';
 
 class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final TripController trip = TripController(widget.store);
@@ -87,12 +98,44 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       final lng = _glideFrom!.longitude + (_glideTo!.longitude - _glideFrom!.longitude) * t;
       _map.move(LatLng(lat, lng), _glideZoomFrom + (_glideZoomTo - _glideZoomFrom) * t);
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _attach());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _attach().whenComplete(_checkForUpdate));
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) trip.recheckProblem();
+    if (state == AppLifecycleState.resumed) {
+      trip.recheckProblem();
+      // Left open for hours: look again, the way other apps do on reopening.
+      final last = _updateCheckedAt;
+      if (last != null && DateTime.now().difference(last) > const Duration(hours: 6)) _checkForUpdate();
+    }
+  }
+
+  // ---- updates ---------------------------------------------------------------
+
+  DateTime? _updateCheckedAt;
+  bool _updateShowing = false;
+
+  /// Asks once per opening when the download page has a newer version.
+  /// Nothing downloads unless the user taps Update.
+  Future<void> _checkForUpdate() async {
+    if (!Updater.supported || _updateShowing) return;
+    _updateCheckedAt = DateTime.now();
+    final updater = Updater();
+    final info = await updater.check();
+    if (info == null || !mounted || _updateShowing) {
+      if (info == null) await updater.cleanup();
+      updater.dispose();
+      return;
+    }
+    _updateShowing = true;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => UpdateDialog(updater: updater, info: info),
+    );
+    _updateShowing = false;
+    updater.dispose();
   }
 
   @override
@@ -117,9 +160,25 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
 
   Future<void> _attach() async {
     await trip.attach();
+    final updated = widget.store.updatedFrom != null;
+    widget.store.updatedFrom = null;
     final log = await trip.interruptedTrip();
     if (log == null || !mounted) return;
-    showDialog<void>(
+    final alive = widget.store.tripAliveAt;
+    final justNow = alive != null && DateTime.now().difference(alive).abs() < const Duration(minutes: 15);
+    if (updated && justNow) {
+      // The update stopped a running trip a moment ago: carry on where it was,
+      // same journal, same live-share link, instead of asking. (A trip that
+      // died long before the update still gets the question below.)
+      await widget.store.setTripRunning(true);
+      final p = await trip.start(resume: true);
+      if (!mounted) return;
+      if (p == LocationProblem.none || p == LocationProblem.approximate) {
+        _snack('GoliCat updated. Your trip carries on.');
+        return;
+      }
+    }
+    await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Your last trip was interrupted'),
@@ -222,15 +281,18 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       return;
     }
     final kind = await _choosePlaceKind(settingHere: true);
-    if (kind == null) return;
-    _editPlace(kind, at: _gp(at));
+    if (kind == null || !mounted) return;
+    if (kind == _more) return _addCustomPlace(at: _gp(at));
+    _editPlace(kind as PlaceKind, at: _gp(at));
   }
 
-  Future<PlaceKind?> _choosePlaceKind({bool settingHere = false}) {
-    return showModalBottomSheet<PlaceKind>(
+  Future<Object?> _choosePlaceKind({bool settingHere = false}) {
+    return showModalBottomSheet<Object>(
       context: context,
+      isScrollControlled: true,
       builder: (ctx) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
           const SizedBox(height: 8),
           for (final k in PlaceKind.values)
             ListTile(
@@ -243,15 +305,80 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                       : '${k.blurb} · set'),
               onTap: () => Navigator.pop(ctx, k),
             ),
+          if (!settingHere)
+            for (final c in widget.store.customPlaces)
+              ListTile(
+                leading: Icon(c.look.icon, color: c.look.color),
+                title: Text(c.name),
+                subtitle: const Text('Your own pin · tap to adjust'),
+                onTap: () => Navigator.pop(ctx, c),
+              ),
+          ListTile(
+            leading: const Icon(Icons.add_location_alt_outlined),
+            title: const Text('More places'),
+            subtitle: const Text("Hospital, shop, mosque, a friend's house… pick an icon and name it"),
+            onTap: () => Navigator.pop(ctx, _more),
+          ),
           const SizedBox(height: 8),
-        ]),
+          ]),
+        ),
       ),
     );
   }
 
   Future<void> _pickPlaceToEdit() async {
-    final kind = await _choosePlaceKind();
-    if (kind != null && mounted) _editPlace(kind);
+    final pick = await _choosePlaceKind();
+    if (pick == null || !mounted) return;
+    if (pick == _more) return _addCustomPlace();
+    if (pick is CustomPlace) return _editCustom(pick);
+    _editPlace(pick as PlaceKind);
+  }
+
+  /// "More": choose an icon and a name, then put the pin on the map.
+  Future<void> _addCustomPlace({GeoPoint? at}) async {
+    if (widget.store.customPlaces.length >= CustomPlace.maxCount) {
+      _snack('You can keep up to ${CustomPlace.maxCount} of your own places. Remove one to add another.');
+      return;
+    }
+    final center = at ?? trip.position ?? (_mapReady ? _gp(_map.camera.center) : null);
+    if (center == null) return;
+    final picked = await _askNameAndIcon();
+    if (picked == null || !mounted) return;
+    final c = CustomPlace(
+      id: '${DateTime.now().microsecondsSinceEpoch}',
+      name: picked.name,
+      icon: picked.icon,
+      center: center,
+    );
+    setState(() {
+      _follow = false;
+      _draft = _PlaceDraft(null, center, 0, existing: false, custom: c);
+    });
+    _glideTo_(center, zoom: 16.5);
+  }
+
+  void _editCustom(CustomPlace c) {
+    setState(() {
+      _follow = false;
+      _draft = _PlaceDraft(null, c.center, 0, existing: true, custom: c);
+    });
+    _glideTo_(c.center, zoom: 16.5);
+  }
+
+  Future<({String name, String icon})?> _askNameAndIcon({CustomPlace? current}) {
+    return showModalBottomSheet<({String name, String icon})>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _CustomPlaceSheet(current: current),
+    );
+  }
+
+  Future<void> _renameDraft() async {
+    final c = _draft?.custom;
+    if (c == null) return;
+    final picked = await _askNameAndIcon(current: c);
+    if (picked == null || !mounted || _draft?.custom?.id != c.id) return;
+    setState(() => _draft!.custom = c.copyWith(name: picked.name, icon: picked.icon));
   }
 
   void _onTap(TapPosition _, LatLng at) {
@@ -278,21 +405,38 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     if (_savingPlace) return;
     final d = _draft!;
     setState(() => _savingPlace = true);
-    await widget.store.setPlace(d.kind, Place(center: d.center, radiusM: d.radius));
-    trip.placeChanged(d.kind);
+    final kind = d.kind;
+    if (kind == null) {
+      final c = d.custom!.copyWith(center: d.center);
+      await widget.store.saveCustomPlace(c);
+      if (!mounted) return;
+      setState(() {
+        _savingPlace = false;
+        _draft = null;
+      });
+      _snack('${c.name} saved on this phone.');
+      return;
+    }
+    await widget.store.setPlace(kind, Place(center: d.center, radiusM: d.radius));
+    trip.placeChanged(kind);
     if (!mounted) return;
     setState(() {
       _savingPlace = false;
       _draft = null;
     });
-    _snack('${d.kind.title.substring(3)} saved on this phone.');
+    _snack('${kind.title.substring(3)} saved on this phone.');
   }
 
   Future<void> _removeDraft() async {
     final d = _draft!;
-    await widget.store.setPlace(d.kind, null);
-    trip.placeChanged(d.kind);
-    setState(() => _draft = null);
+    final kind = d.kind;
+    if (kind == null) {
+      await widget.store.removeCustomPlace(d.custom!.id);
+    } else {
+      await widget.store.setPlace(kind, null);
+      trip.placeChanged(kind);
+    }
+    if (mounted) setState(() => _draft = null);
   }
 
   void _snack(String s) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(s)));
@@ -333,6 +477,14 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
         onEditPlace: (k) {
           Navigator.pop(ctx);
           _editPlace(k);
+        },
+        onEditCustom: (c) {
+          Navigator.pop(ctx);
+          _editCustom(c);
+        },
+        onAddCustom: () {
+          Navigator.pop(ctx);
+          _addCustomPlace();
         },
         onAvatar: () {
           Navigator.pop(ctx);
@@ -410,6 +562,46 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
           child: GestureDetector(
             onTap: v.editing ? null : () => _editPlace(k),
             child: _PlacePin(icon: pin.icon, color: pin.color, big: v.editing),
+          ),
+        ),
+      ));
+    }
+    final d = _draft;
+    final editingId = d?.custom?.id;
+    final customs = [
+      for (final c in widget.store.customPlaces)
+        if (c.id != editingId) (c: c, editing: false),
+      if (d != null && d.custom != null) (c: d.custom!.copyWith(center: d.center), editing: true),
+    ];
+    for (final e in customs) {
+      final c = e.c;
+      out.add(Marker(
+        point: _ll(c.center),
+        width: 120,
+        height: 70,
+        // The pin's tip (46 px down a 70 px box) sits on the place itself.
+        alignment: const Alignment(0, -0.314),
+        child: Semantics(
+          button: true,
+          label: '${c.name}. Tap to adjust.',
+          child: GestureDetector(
+            onTap: e.editing ? null : () => _editCustom(c),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _PlacePin(icon: c.look.icon, color: c.look.color, big: e.editing),
+              Container(
+                margin: const EdgeInsets.only(top: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: c.look.color.withValues(alpha: 0.5)),
+                ),
+                child: Text(c.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: c.look.color)),
+              ),
+            ]),
           ),
         ),
       ));
@@ -527,6 +719,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                     saving: _savingPlace,
                     onCancel: () => setState(() => _draft = null),
                     onRemove: _draft!.existing ? _removeDraft : null,
+                    onRename: _draft!.custom != null ? _renameDraft : null,
                   )
                 : _StatusPanel(
                     trip: trip,
@@ -813,9 +1006,11 @@ class _PlaceEditor extends StatelessWidget {
     required this.onSave,
     required this.onCancel,
     this.onRemove,
+    this.onRename,
     this.saving = false,
   });
   final _PlaceDraft draft;
+  final VoidCallback? onRename;
   final bool saving;
   final bool canUseCurrent;
   final VoidCallback onUseCurrent, onSave, onCancel;
@@ -825,20 +1020,28 @@ class _PlaceEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final pin = _pinOf(draft.kind);
+    final kind = draft.kind;
+    final custom = draft.custom;
+    final icon = kind != null ? _pinOf(kind).icon : custom!.look.icon;
+    final color = kind != null ? _pinOf(kind).color : custom!.look.color;
     return _Card(
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
-          Icon(pin.icon, color: pin.color, size: 20),
+          Icon(icon, color: color, size: 20),
           const SizedBox(width: 8),
-          Text(draft.kind.title, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Expanded(
+            child: Text(kind?.title ?? custom!.name,
+                maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          ),
+          if (onRename != null) TextButton(onPressed: onRename, child: const Text('Name & icon')),
         ]),
         Text(
-          'Stay inside the circle for about 2 minutes and ${draft.kind.arrivalText}. '
-          'Tap the map to move the pin.',
+          kind != null
+              ? 'Stay inside the circle for about 2 minutes and ${kind.arrivalText}. Tap the map to move the pin.'
+              : 'Tap the map to move the pin. It stays on your map, saved on this phone.',
           style: t.bodySmall,
         ),
-        Row(children: [
+        if (kind != null) Row(children: [
           Text('${draft.radius.round()} m', style: t.labelLarge),
           Expanded(
             child: Slider(
@@ -912,11 +1115,15 @@ class _SettingsSheet extends StatefulWidget {
     required this.store,
     required this.trip,
     required this.onEditPlace,
+    required this.onEditCustom,
+    required this.onAddCustom,
     required this.onAvatar,
   });
   final AppStore store;
   final TripController trip;
   final ValueChanged<PlaceKind> onEditPlace;
+  final ValueChanged<CustomPlace> onEditCustom;
+  final VoidCallback onAddCustom;
   final VoidCallback onAvatar;
   @override
   State<_SettingsSheet> createState() => _SettingsSheetState();
@@ -979,9 +1186,22 @@ class _SettingsSheetState extends State<_SettingsSheet> {
               subtitle: Text(s.place(k) == null ? '${k.blurb} · not set, long-press the map' : '${k.blurb} · set, tap to adjust'),
               onTap: () => widget.onEditPlace(k),
             ),
+          for (final c in s.customPlaces)
+            ListTile(
+              leading: Icon(c.look.icon, color: c.look.color),
+              title: Text(c.name),
+              subtitle: const Text('Your own pin · tap to adjust'),
+              onTap: () => widget.onEditCustom(c),
+            ),
+          ListTile(
+            leading: const Icon(Icons.add_location_alt_outlined),
+            title: const Text('More places'),
+            subtitle: const Text('Pin a hospital, shop, mosque… with your own name'),
+            onTap: widget.onAddCustom,
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text('Your office, home and trips are stored only on this phone.'),
+            child: Text('Your places and trips are stored only on this phone.'),
           ),
         ]),
       ),
@@ -1150,6 +1370,109 @@ class _ShareSheetState extends State<_ShareSheet> {
               ),
             ]),
         ]),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+/// "More places": a name typed in Bangla or English, and an icon.
+class _CustomPlaceSheet extends StatefulWidget {
+  const _CustomPlaceSheet({this.current});
+  final CustomPlace? current;
+  @override
+  State<_CustomPlaceSheet> createState() => _CustomPlaceSheetState();
+}
+
+class _CustomPlaceSheetState extends State<_CustomPlaceSheet> {
+  late final _name = TextEditingController(text: widget.current?.name ?? '');
+  late String _icon = widget.current?.icon ?? placeIcons.first.key;
+
+  /// The name we filled in from an icon, so picking another icon can replace it.
+  String? _suggested;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _pick(PlaceIcon i) {
+    setState(() {
+      _icon = i.key;
+      final typed = _name.text.trim();
+      if (typed.isEmpty || typed == _suggested) {
+        _suggested = i.suggestedName;
+        _name.text = i.suggestedName;
+        _name.selection = TextSelection(baseOffset: 0, extentOffset: _name.text.length);
+      }
+    });
+  }
+
+  void _done() {
+    final name = _name.text.trim();
+    Navigator.pop(context, (name: name.isEmpty ? placeIconOf(_icon).suggestedName : name, icon: _icon));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final mq = MediaQuery.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text(widget.current == null ? 'Add a place' : 'Name & icon',
+                style: t.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _name,
+              maxLength: CustomPlace.maxName,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _done(),
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                hintText: 'যেমন: আম্মুর বাসা / Gym',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            Text('Icon', style: t.labelLarge),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              for (final i in placeIcons)
+                Semantics(
+                  button: true,
+                  selected: i.key == _icon,
+                  label: i.en,
+                  child: InkResponse(
+                    onTap: () => _pick(i),
+                    radius: 28,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: i.key == _icon ? i.color : i.color.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: i.color.withValues(alpha: i.key == _icon ? 1 : 0.35), width: 2),
+                      ),
+                      child: Icon(i.icon, color: i.key == _icon ? Colors.white : i.color, size: 22),
+                    ),
+                  ),
+                ),
+            ]),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: _done,
+              icon: Icon(widget.current == null ? Icons.add_location_alt : Icons.check),
+              label: Text(widget.current == null ? 'Put it on the map' : 'Done'),
+            ),
+          ]),
+        ),
       ),
     );
   }

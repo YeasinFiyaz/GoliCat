@@ -44,6 +44,12 @@ class _CatLayerState extends State<CatLayer> with SingleTickerProviderStateMixin
   int _boil = 0;
   double _boilAcc = 0;
 
+  /// Time not yet drawn while frames are being skipped.
+  double _pending = 0;
+
+  /// A settled cat is drawn at this rate; anything lively gets every frame.
+  static const _calmFrame = 1 / 30;
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +61,12 @@ class _CatLayerState extends State<CatLayer> with SingleTickerProviderStateMixin
     _last = elapsed;
     if (dt > 0.1) dt = 0.1;
     final s = widget.session;
+    // Battery: asleep or sipping cha, half the frames look identical. Skip
+    // them (the map itself still pans at full rate: it repaints on its own).
+    _pending += dt;
+    if (s.director.calm && !s.moving && !s.position.gliding && _pending < _calmFrame - 0.004) return;
+    dt = _pending > 0.1 ? 0.1 : _pending;
+    _pending = 0;
     s.director.reducedMotion = widget.reducedMotion;
     s.position.advance(dt * widget.timeScale);
     // Face the direction of travel as seen on screen (map may be rotated).

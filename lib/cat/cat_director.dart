@@ -46,6 +46,27 @@ class CatDirector {
   /// Seconds an activity has to run before the minute can change it.
   static const homeMinStay = 20.0;
 
+  /// True while the cat is settled in a slow loop (asleep, sipping cha, at a
+  /// desk…): nothing quick is on screen, so it can be drawn at a lower frame
+  /// rate to save battery. Walking, running, every transition, a turn and a
+  /// tap reaction are never calm.
+  bool get calm =>
+      clipSpecs[_clip]!.loops &&
+      _clip != ClipId.walk &&
+      _clip != ClipId.fast &&
+      _clipT > 1.5 &&
+      _queue.isEmpty &&
+      !(_blendFrom != null && _blendT < 1) &&
+      _boop >= 1.1 &&
+      (_facing.abs() - 1).abs() < 0.001;
+
+  /// Lets the next home activity start now instead of after [homeMinStay]
+  /// (the animation preview's "Next home activity").
+  /// Only takes effect once the cat is settled in a home activity, so a
+  /// transition already playing is never cut short.
+  void skipHomeStay() => _skipStay = true;
+  bool _skipStay = false;
+
   ClipId _target() => _mode == CatMode.atHome ? homeActivityAt(clock()) : loopFor(_mode);
   double _boop = 99;
 
@@ -285,8 +306,9 @@ class CatDirector {
           ..addAll(plan(baseOf(_clip), _mode, home: _target()));
       }
       _next();
-    } else if (_mode == CatMode.atHome && _queue.isEmpty && spec.loops && _clipT > homeMinStay) {
+    } else if (_mode == CatMode.atHome && _queue.isEmpty && spec.loops && (_clipT > homeMinStay || _skipStay)) {
       // A new minute at home: on to the next activity.
+      _skipStay = false;
       final want = homeActivityAt(clock());
       if (want != _clip && homeActivities.contains(_clip)) {
         _queue.addAll(plan(_clip, CatMode.atHome, home: want));
